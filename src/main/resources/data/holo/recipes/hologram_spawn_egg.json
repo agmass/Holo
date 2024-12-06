@@ -1,0 +1,42 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "www",
+    "whw",
+    "wew"
+  ],
+  "key": {
+    "w": {
+      "item": "diamond"
+    },
+    "h": [
+      {
+        "item": "player_head"
+      },
+      {
+        "item": "creeper_head"
+      },
+      {
+        "item": "zombie_head"
+      },
+      {
+        "item": "minecraft:dragon_head"
+      },
+      {
+        "item": "minecraft:piglin_head"
+      },
+      {
+        "item": "minecraft:skeleton_skull"
+      },
+      {
+        "item": "minecraft:wither_skeleton_skull"
+      }
+    ],
+    "e": {
+      "item": "redstone_block"
+    }
+  },
+  "result": {
+    "item": "holo:hologram_spawn_egg"
+  }
+}

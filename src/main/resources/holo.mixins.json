@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "org.agmas.holo.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "CannotModifyMixin",
+    "HoloUpdateMixin",
+    "NoFakeDeathMessageMixin",
+    "PlayerListPacketMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

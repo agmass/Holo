@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "www",
+    "whw",
+    "www"
+  ],
+  "key": {
+    "w": {
+      "item": "stone"
+    },
+    "h": {
+      "item": "glass_pane"
+    }
+  },
+  "result": {
+    "item": "holo:hologram_controller"
+  }
+}

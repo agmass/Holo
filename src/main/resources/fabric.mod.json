@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "holo",
+  "version": "${version}",
+  "name": "Holo",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "LGPL-3.0",
+  "icon": "assets/holo/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "client": [
+      "org.agmas.holo.client.HoloClient"
+    ],
+    "main": [
+      "org.agmas.holo.Holo"
+    ]
+  },
+  "mixins": [
+    "holo.mixins.json",
+    {
+      "config": "holo.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
