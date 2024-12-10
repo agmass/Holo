@@ -21,7 +21,7 @@ import java.util.UUID;
 public class FakestPlayer extends ServerPlayerEntity {
 
     public boolean isHologram = true;
-    public HologramType type;
+    public HologramType type = HologramType.NORMAL;
     private static final Map<FakePlayerKey, FakestPlayer> FAKE_PLAYER_MAP;
     public Vec3d savedPos;
     public float pitch;

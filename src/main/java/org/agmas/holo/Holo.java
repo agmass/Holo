@@ -119,6 +119,7 @@ public class Holo implements ModInitializer {
         ServerPlayConnectionEvents.DISCONNECT.register(((serverPlayNetworkHandler, minecraftServer) -> {
             for (FakestPlayer clone : StateSaverAndLoader.getPlayerState(serverPlayNetworkHandler.player).clones) {
                 serverPlayNetworkHandler.player.getWorld().getServer().getPlayerManager().sendToAll(new PlayerRemoveS2CPacket(List.of(clone.getUuid())));
+                clone.savedPos = clone.getPos();
                 clone.remove(Entity.RemovalReason.DISCARDED);
             }
         }));
