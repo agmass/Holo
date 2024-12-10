@@ -10,10 +10,16 @@ import net.minecraft.util.TypedActionResult;
 import net.minecraft.world.World;
 import org.agmas.holo.Holo;
 import org.agmas.holo.state.StateSaverAndLoader;
+import org.agmas.holo.util.FakestPlayer;
+import org.agmas.holo.util.HologramType;
 
 public class HologramSpawnEgg extends Item {
-    public HologramSpawnEgg(Settings settings) {
+
+    public HologramType type;
+
+    public HologramSpawnEgg(Settings settings, HologramType spawnType) {
         super(settings);
+        type = spawnType;
     }
 
     @Override
@@ -29,7 +35,8 @@ public class HologramSpawnEgg extends Item {
             if (!user.getAbilities().creativeMode) {
                 itemStack.decrement(1);
             }
-            Holo.summonNewBody(user, true);
+            FakestPlayer player = Holo.summonNewBody(user, true);
+            player.type = type;
         }
         return super.use(world, user, hand);
     }

@@ -103,6 +103,10 @@ public class Holo implements ModInitializer {
 
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.SPAWN_EGGS).register((t)->{
             t.add(ModItems.HOLOGRAM_SPAWN_EGG);
+            t.add(ModItems.BATTLE_HOLOGRAM_SPAWN_EGG);
+            t.add(ModItems.SCOUT_HOLOGRAM_SPAWN_EGG);
+            t.add(ModItems.SILENT_HOLOGRAM_SPAWN_EGG);
+            t.add(ModItems.ENDER_HOLOGRAM_SPAWN_EGG);
         });
 
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.FUNCTIONAL).register((t)->{
@@ -178,9 +182,6 @@ public class Holo implements ModInitializer {
         clone.setScore(original.getScore());
         clone.setFireTicks(original.getFireTicks());
         clone.timeUntilRegen = 0;
-        original.getActiveStatusEffects().forEach((statusEffect,statusEffectInstance)->{
-            clone.addStatusEffect(statusEffectInstance);
-        });
         clone.fallDistance = original.fallDistance;
         clone.updateLastActionTime();
         clone.getInventory().markDirty();

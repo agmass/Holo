@@ -6,13 +6,38 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 import org.agmas.holo.item.HologramSpawnEgg;
+import org.agmas.holo.util.HologramType;
 
 public class ModItems {
 
     public static final Item HOLOGRAM_SPAWN_EGG = register(
-            new HologramSpawnEgg(new FabricItemSettings().fireproof()),
+            new HologramSpawnEgg(new FabricItemSettings().fireproof(), HologramType.NORMAL),
             "hologram_spawn_egg"
     );
+
+    public static final Item BATTLE_HOLOGRAM_SPAWN_EGG = register(
+            new HologramSpawnEgg(new FabricItemSettings().fireproof(), HologramType.BATTLE),
+            "battle_hologram_spawn_egg"
+    );
+
+
+    public static final Item SCOUT_HOLOGRAM_SPAWN_EGG = register(
+            new HologramSpawnEgg(new FabricItemSettings().fireproof(), HologramType.SCOUT),
+            "scout_hologram_spawn_egg"
+    );
+
+
+    public static final Item SILENT_HOLOGRAM_SPAWN_EGG = register(
+            new HologramSpawnEgg(new FabricItemSettings().fireproof(), HologramType.SILENT),
+            "silent_hologram_spawn_egg"
+    );
+
+
+    public static final Item ENDER_HOLOGRAM_SPAWN_EGG = register(
+            new HologramSpawnEgg(new FabricItemSettings().fireproof(), HologramType.ENDER),
+            "ender_hologram_spawn_egg"
+    );
+
 
 
     public static Item register(Item item, String id) {

@@ -19,6 +19,7 @@ import net.minecraft.world.PersistentStateManager;
 import net.minecraft.world.World;
 import org.agmas.holo.Holo;
 import org.agmas.holo.util.FakestPlayer;
+import org.agmas.holo.util.HologramType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -53,6 +54,7 @@ public class StateSaverAndLoader extends PersistentState {
                     fakePlayer.isHologram = playerData.cloneCompound.getCompound(k).getBoolean("isHologram");
                     fakePlayer.worldName = (RegistryKey<World>) World.CODEC.parse(new Dynamic(NbtOps.INSTANCE, playerData.cloneCompound.getCompound(k).get("Dimension"))).result().get();
                     fakePlayer.savedPos = new Vec3d(playerData.cloneCompound.getCompound(k).getDouble("X"),playerData.cloneCompound.getCompound(k).getDouble("Y"),playerData.cloneCompound.getCompound(k).getDouble("Z"));
+                    fakePlayer.type = HologramType.values()[playerData.cloneCompound.getCompound(k).getInt("type")];
                     playerData.clones.add(fakePlayer);
 
                 }));
@@ -103,6 +105,7 @@ public class StateSaverAndLoader extends PersistentState {
     public static class PlayerData {
         public boolean inHoloMode = false;
         public boolean loreAccurate = false;
+        public HologramType hologramType = HologramType.NORMAL;
         public String playerName = "";
         public ArrayList<FakestPlayer> clones = new ArrayList<>();
         public NbtCompound cloneCompound;
