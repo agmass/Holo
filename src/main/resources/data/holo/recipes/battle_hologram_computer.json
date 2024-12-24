@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "holo:hologram_controller"
+    },
+    {
+      "item": "holo:battle_hologram_spawn_egg"
+    },
+    {
+      "item": "holo:battle_hologram_spawn_egg"
+    }
+  ],
+  "result": {
+    "item": "holo:battle_hologram_controller",
+    "count": 1
+  }
+}

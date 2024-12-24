@@ -12,6 +12,7 @@ import net.minecraft.world.World;
 import org.agmas.holo.Holo;
 import org.agmas.holo.state.StateSaverAndLoader;
 import org.agmas.holo.util.HoloModeUpdates;
+import org.agmas.holo.util.HologramType;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -27,8 +28,10 @@ public class CannotModifyMixin {
     @Inject(method = "canPlayerModifyAt", at = @At("HEAD"), cancellable = true)
     public void sendShellUpdate(PlayerEntity player, BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
         if (StateSaverAndLoader.getPlayerState(player).inHoloMode && !StateSaverAndLoader.getPlayerState(player).loreAccurate) {
-            cir.setReturnValue(false);
-            cir.cancel();
+            if (!StateSaverAndLoader.getPlayerState(player).hologramType.equals(HologramType.BATTLE) && !StateSaverAndLoader.getPlayerState(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
+                cir.setReturnValue(false);
+                cir.cancel();
+            }
         }
     }
 }

@@ -46,15 +46,18 @@ public class StateSaverAndLoader extends PersistentState {
             playerData.inHoloMode = playersNbt.getCompound(key).getBoolean("inHoloMode");
             playerData.loreAccurate = playersNbt.getCompound(key).getBoolean("loreMode");
             playerData.cloneCompound = playersNbt.getCompound(key).getCompound("clones");
+            playerData.hologramType = HologramType.valueOf(playersNbt.getCompound(key).getString("type"));
 
             if (playerData.cloneCompound != null) {
                 playerData.cloneCompound.getKeys().forEach((k -> {
                     FakestPlayer fakePlayer = FakestPlayer.get(Holo.server.getOverworld(), new GameProfile(Holo.getFreeUUID(), ""), playerData.cloneCompound.getCompound(k).getString("ownerName"), UUID.fromString(key));
                     fakePlayer.readCustomDataFromNbt(playerData.cloneCompound.getCompound(k));
+                    fakePlayer.setPosition(new Vec3d(playerData.cloneCompound.getCompound(k).getDouble("X"),playerData.cloneCompound.getCompound(k).getDouble("Y"),playerData.cloneCompound.getCompound(k).getDouble("Z")));
+                    fakePlayer.setPitch((float) playerData.cloneCompound.getCompound(k).getDouble("Pitch"));
+                    fakePlayer.setYaw((float) playerData.cloneCompound.getCompound(k).getDouble("Yaw"));
                     fakePlayer.isHologram = playerData.cloneCompound.getCompound(k).getBoolean("isHologram");
                     fakePlayer.worldName = (RegistryKey<World>) World.CODEC.parse(new Dynamic(NbtOps.INSTANCE, playerData.cloneCompound.getCompound(k).get("Dimension"))).result().get();
-                    fakePlayer.savedPos = new Vec3d(playerData.cloneCompound.getCompound(k).getDouble("X"),playerData.cloneCompound.getCompound(k).getDouble("Y"),playerData.cloneCompound.getCompound(k).getDouble("Z"));
-                    fakePlayer.type = HologramType.values()[playerData.cloneCompound.getCompound(k).getInt("type")];
+                    fakePlayer.type = HologramType.valueOf(playersNbt.getCompound(key).getString("type"));
                     playerData.clones.add(fakePlayer);
 
                 }));
@@ -86,6 +89,7 @@ public class StateSaverAndLoader extends PersistentState {
             playerNbt.putBoolean("inHoloMode", playerData.inHoloMode);
             playerNbt.putBoolean("loreMode", playerData.loreAccurate);
             playerNbt.putString("playerName", playerData.playerName);
+            playerNbt.putString("type", playerData.hologramType.name());
 
             playerData.clones.forEach((fakestPlayer -> {
                 NbtCompound singleCloneNbt = new NbtCompound();

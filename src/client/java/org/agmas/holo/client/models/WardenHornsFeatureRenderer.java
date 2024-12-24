@@ -13,11 +13,13 @@ import net.minecraft.client.render.entity.model.EntityModelLoader;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.render.model.ModelLoader;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import org.agmas.holo.Holo;
 import org.agmas.holo.client.HoloClient;
+import org.agmas.holo.util.HologramType;
 
 public class WardenHornsFeatureRenderer extends FeatureRenderer<AbstractClientPlayerEntity, PlayerEntityModel<AbstractClientPlayerEntity>> {
     ModelPart horns;
@@ -33,18 +35,19 @@ public class WardenHornsFeatureRenderer extends FeatureRenderer<AbstractClientPl
 
     @Override
     public void render(MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, AbstractClientPlayerEntity entity, float limbAngle, float limbDistance, float tickDelta, float animationProgress, float headYaw, float headPitch) {
-        getContextModel().head.copyTransform(horns);
-        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayer.getEntitySolid(getTexture(entity)));
-        int m = LivingEntityRenderer.getOverlay(entity, 0.0F);
-        float o = MathHelper.lerp(tickDelta, entity.prevYaw, entity.getYaw()) - MathHelper.lerp(animationProgress, entity.prevBodyYaw, entity.bodyYaw);
-        float p = MathHelper.lerp(tickDelta, entity.prevPitch, entity.getPitch());
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(o));
-        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(p));
-        matrices.translate(0.0F, -2.375F, 0.0F);
-        matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(-p));
-        matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-o));;
-        matrices.scale(1.3333334F, 1.3333334F, 1.3333334F);
-        horns.render(matrices,vertexConsumer,light,m);
+        if (HoloClient.playersInHolo.containsKey(entity.getUuid())) {
+            if (HoloClient.playersInHolo.get(entity.getUuid()).equals(HologramType.SILENT)) {
+                matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(headYaw));
+                matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(headPitch));
+                getContextModel().head.copyTransform(horns);
+                VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayer.getEntitySolid(getTexture(entity)));
+                int m = LivingEntityRenderer.getOverlay(entity, 0.0F);
+                matrices.translate(0, entity.isSneaky() ? -1.9F : -2.1875F, 0);
+                matrices.scale(1.3333334F, 1.3333334F, 1.3333334F);
+                horns.render(matrices, vertexConsumer, light, m, 0.75F, 0.75F, 1.0F, 0.5F);
+            }
+        }
 
     }
+
 }

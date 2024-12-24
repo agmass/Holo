@@ -1,6 +1,9 @@
 {
   "block.holo.hologram_controller": "Hologram Controlling Computer",
+  "block.holo.battle_hologram_controller": "Hologram Duel Computer",
   "category.holo.hologramcontrols": "Hologram Controls",
   "key.holo.swap": "Swap Body",
-  "item.holo.hologram_spawn_egg": "Hologram Spawn Egg"
+  "item.holo.hologram_spawn_egg": "Hologram Spawn Egg",
+  "item.holo.battle_hologram_spawn_egg": "Battle Hologram Spawn Egg",
+  "item.holo.silent_hologram_spawn_egg": "Silent Hologram Spawn Egg"
 }

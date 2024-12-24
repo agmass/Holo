@@ -59,6 +59,7 @@ public class HoloModeUpdates {
                 if (StateSaverAndLoader.getPlayerState(p).inHoloMode) {
                     PacketByteBuf data = PacketByteBufs.create();
                     data.writeUuid(p.getUuid());
+                    data.writeEnumConstant(StateSaverAndLoader.getPlayerState(p).hologramType);
                     ServerPlayNetworking.send(player, Holo.HOLO_MODE, data);
                 }
             });
@@ -72,7 +73,12 @@ public class HoloModeUpdates {
 
         PacketByteBuf data = PacketByteBufs.create();
         StateSaverAndLoader.getPlayerState(player).inHoloMode = true;
-            data.writeUuid(player.getUuid());
+        data.writeUuid(player.getUuid());
+        if (player instanceof FakestPlayer fp) {
+            data.writeEnumConstant(fp.type);
+        } else {
+            data.writeEnumConstant(StateSaverAndLoader.getPlayerState(player).hologramType);
+        }
 
         server.execute(() -> {
             server.getPlayerManager().getPlayerList().forEach((p)->{

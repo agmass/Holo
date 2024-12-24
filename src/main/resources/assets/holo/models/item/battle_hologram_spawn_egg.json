@@ -1,0 +1,6 @@
+{
+	"parent": "minecraft:item/generated",
+	"textures": {
+		"layer0": "holo:item/battle_hologram_spawn_egg"
+	}
+}

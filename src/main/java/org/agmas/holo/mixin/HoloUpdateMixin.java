@@ -23,6 +23,7 @@ import org.agmas.holo.Holo;
 import org.agmas.holo.state.StateSaverAndLoader;
 import org.agmas.holo.util.FakestPlayer;
 import org.agmas.holo.util.HoloModeUpdates;
+import org.agmas.holo.util.HologramType;
 import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -48,10 +49,13 @@ public class HoloUpdateMixin {
     public void sendShellUpdate(ClientConnection connection, ServerPlayerEntity player, CallbackInfo ci) {
         HoloModeUpdates.refreshHolosOnClient(player);
         Holo.updateAttributesAndUpdateMode(player);
+        if (StateSaverAndLoader.getPlayerState(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
+            Holo.swapBody(player,false,false);
+            Holo.updateAttributesAndUpdateMode(player);
+        }
         StateSaverAndLoader.getPlayerState(player).clones.forEach((clone)->{
             player.getServer().getPlayerManager().sendToAll(PlayerListS2CPacket.entryFromPlayer(List.of(clone)));
             ((ServerWorld) server.getWorld(clone.worldName)).onPlayerConnected(clone);
-            clone.teleport((ServerWorld) server.getWorld(clone.worldName), BlockPos.ofFloored(clone.savedPos).getX(), BlockPos.ofFloored(clone.savedPos).getY(), BlockPos.ofFloored(clone.savedPos).getZ(), clone.yaw, clone.pitch);
         });
     }
 }

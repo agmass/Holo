@@ -27,7 +27,7 @@ public class HoloSkinPlayerMixin {
 
     @Inject(method = "renderArm", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/model/PlayerEntityModel;setAngles(Lnet/minecraft/entity/LivingEntity;FFFFF)V", shift = At.Shift.AFTER), cancellable = true)
     public void visibilityMixin2(MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, AbstractClientPlayerEntity player, ModelPart arm, ModelPart sleeve, CallbackInfo ci, @Local(argsOnly = true) AbstractClientPlayerEntity livingEntity) {
-        if (HoloClient.playersInHolo.contains(livingEntity.getUuid())) {
+        if (HoloClient.playersInHolo.containsKey(livingEntity.getUuid())) {
             ci.cancel();
             arm.pitch = 0.0F;
             arm.render(matrices, vertexConsumers.getBuffer(RenderLayer.getEntitySolid(player.getSkinTexture())), light, OverlayTexture.DEFAULT_UV, 0.75F, 0.75F, 1.0F, 0.5F);

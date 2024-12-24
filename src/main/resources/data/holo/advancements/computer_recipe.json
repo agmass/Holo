@@ -2,7 +2,8 @@
   "parent": "minecraft:recipes/root",
   "rewards": {
     "recipes": [
-      "holo:computer_recipe"
+      "holo:computer_recipe",
+      "holo:battle_hologram_computer"
     ]
   },
   "criteria": {

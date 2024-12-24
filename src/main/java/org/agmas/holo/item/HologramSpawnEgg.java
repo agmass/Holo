@@ -35,8 +35,7 @@ public class HologramSpawnEgg extends Item {
             if (!user.getAbilities().creativeMode) {
                 itemStack.decrement(1);
             }
-            FakestPlayer player = Holo.summonNewBody(user, true);
-            player.type = type;
+            Holo.summonNewBody(user, true, type);
         }
         return super.use(world, user, hand);
     }

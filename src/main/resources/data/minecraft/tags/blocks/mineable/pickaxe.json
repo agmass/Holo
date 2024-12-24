@@ -1,0 +1,7 @@
+{
+  "replace": false,
+  "values": [
+    "holo:hologram_controller",
+    "holo:battle_hologram_controller"
+  ]
+}

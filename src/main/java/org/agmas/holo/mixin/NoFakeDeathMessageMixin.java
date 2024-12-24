@@ -1,19 +1,17 @@
 package org.agmas.holo.mixin;
 
-import net.minecraft.network.packet.s2c.play.PlayerListS2CPacket;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.GameRules;
-import org.agmas.holo.Holo;
 import org.agmas.holo.state.StateSaverAndLoader;
 import org.agmas.holo.util.FakestPlayer;
-import org.agmas.holo.util.HoloModeUpdates;
+import org.agmas.holo.util.HologramType;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
-
-import java.util.List;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(ServerPlayerEntity.class)
 public class NoFakeDeathMessageMixin {
@@ -24,5 +22,12 @@ public class NoFakeDeathMessageMixin {
                 return false;
         }
         return true;
+    }
+    @Inject(method = "dropSelectedItem", at = @At("HEAD"), cancellable = true)
+    void aa(boolean entireStack, CallbackInfoReturnable<Boolean> cir) {
+        if (StateSaverAndLoader.getPlayerState((ServerPlayerEntity)(Object)this).hologramType.equals(HologramType.BATTLE_DUEL)) {
+            cir.setReturnValue(false);
+            cir.cancel();
+        }
     }
 }

@@ -8,6 +8,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.sound.BlockSoundGroup;
 import net.minecraft.util.Identifier;
+import org.agmas.holo.block.BattleHologramComputer;
 import org.agmas.holo.block.HologramController;
 
 public class ModBlocks {
@@ -15,6 +16,11 @@ public class ModBlocks {
     public static final Block HOLOGRAM_CONTROLLER = register(
             new HologramController(AbstractBlock.Settings.create().sounds(BlockSoundGroup.STONE).requiresTool().strength(3.5F).nonOpaque()),
             "hologram_controller",
+            true
+    );
+    public static final Block BATTLE_HOLOGRAM_CONTROLLER = register(
+            new BattleHologramComputer(AbstractBlock.Settings.create().sounds(BlockSoundGroup.STONE).requiresTool().strength(3.5F).nonOpaque()),
+            "battle_hologram_controller",
             true
     );
     public static Block register(Block block, String name, boolean shouldRegisterItem) {

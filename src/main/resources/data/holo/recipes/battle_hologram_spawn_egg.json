@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " # ",
+    "GHG",
+    "iii"
+  ],
+  "key": {
+    "#": {
+      "item": "minecraft:diamond_sword"
+    },
+    "G": {
+      "item": "minecraft:golden_carrot"
+    },
+    "H": {
+      "item": "holo:hologram_spawn_egg"
+    },
+    "i": {
+      "item": "minecraft:iron_ingot"
+    }
+  },
+  "result": {
+    "item": "holo:battle_hologram_spawn_egg",
+    "count": 1
+  }
+}

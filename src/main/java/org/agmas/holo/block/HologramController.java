@@ -37,6 +37,9 @@ import java.util.UUID;
 public class HologramController extends Block {
     public static final DirectionProperty FACING;
     protected static final VoxelShape SHAPE;
+    protected static final VoxelShape SHAPE_SOUTH;
+    protected static final VoxelShape SHAPE_WEST;
+    protected static final VoxelShape SHAPE_EAST;
 
     public HologramController(Settings settings) {
         super(settings);
@@ -51,16 +54,30 @@ public class HologramController extends Block {
 
     @Override
     public VoxelShape getOutlineShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-        return SHAPE;
+        return switch (state.get(FACING)) {
+            case EAST -> SHAPE_EAST;
+            case WEST -> SHAPE_WEST;
+            case SOUTH -> SHAPE_SOUTH;
+            default -> SHAPE;
+        };
     }
 
     @Override
     public VoxelShape getCollisionShape(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-        return SHAPE;
+        return switch (state.get(FACING)) {
+            case EAST -> SHAPE_EAST;
+            case WEST -> SHAPE_WEST;
+            case SOUTH -> SHAPE_SOUTH;
+            default -> SHAPE;
+        };
     }
 
     static {
         SHAPE = VoxelShapes.union(Block.createCuboidShape(2.0, 1.5, 3.0, 14.0, 12.5, 14));
+        SHAPE_SOUTH = VoxelShapes.union(Block.createCuboidShape(2.0, 1.5, 2.0, 14.0, 12.5, 13));
+
+        SHAPE_WEST = VoxelShapes.union(Block.createCuboidShape(3.0, 1.5, 2.0, 14.0, 12.5, 14));
+        SHAPE_EAST= VoxelShapes.union(Block.createCuboidShape(2.0, 1.5, 2.0, 13.0, 12.5, 14));
     }
 
     @Override
