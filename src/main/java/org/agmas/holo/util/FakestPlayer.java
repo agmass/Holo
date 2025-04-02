@@ -26,6 +26,7 @@ public class FakestPlayer extends ServerPlayerEntity {
     public float pitch;
     public float yaw;
     public String ownerName;
+    public String holoName = "testName";
     public UUID ownerUUID;
     public RegistryKey<World> worldName;
 
@@ -85,6 +86,7 @@ public class FakestPlayer extends ServerPlayerEntity {
         nbtCompound.putDouble("Z", getZ());
         nbtCompound.putDouble("Pitch", getPitch());
         nbtCompound.putDouble("Yaw", getYaw());
+        nbtCompound.putString("HoloName", holoName);
     }
 
 

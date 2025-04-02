@@ -15,6 +15,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.loader.impl.util.log.Log;
@@ -33,6 +34,7 @@ import net.minecraft.item.ItemGroups;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.network.NetworkSide;
+import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
@@ -55,14 +57,12 @@ import net.minecraft.world.World;
 import net.minecraft.world.biome.source.BiomeAccess;
 import net.minecraft.world.border.WorldBorder;
 import org.agmas.holo.state.StateSaverAndLoader;
+import org.agmas.holo.terminalCommands.TerminalCommand;
+import org.agmas.holo.terminalCommands.TerminalCommandParser;
 import org.agmas.holo.util.BattleHologramComputerEntry;
 import org.agmas.holo.util.FakestPlayer;
 import org.agmas.holo.util.HoloModeUpdates;
 import org.agmas.holo.util.HologramType;
-import org.kosoc.customenchants.Customenchants;
-import org.kosoc.customenchants.IPlayerData;
-import org.kosoc.customenchants.packets.ModPackets;
-import org.kosoc.customenchants.utils.DashData;
 
 import java.net.URL;
 import java.util.*;
@@ -79,6 +79,12 @@ public class Holo implements ModInitializer {
     public static final Identifier HUMAN_MODE = new Identifier(MOD_ID, "human_mode");
     public static final Identifier HOLO_MODE = new Identifier(MOD_ID, "holo_mode");
     public static final Identifier SWAP_PACKET = new Identifier(MOD_ID, "swap");
+
+    public static final Identifier TERMINAL_COMMAND = new Identifier(MOD_ID, "terminal_command");
+
+    public static final Identifier SEND_TERMINAL_AUTOCOMPLETE = new Identifier(MOD_ID, "terminal_autocomplete");
+    public static final Identifier REQUEST_TERMINAL_AUTOCOMPLETE = new Identifier(MOD_ID, "request_terminal_autocomplete");
+
     public static final Identifier TEMPORARILY_SHOW_ENTITY = new Identifier(MOD_ID, "temporarily_show_entity");
     public static final Identifier OPEN_BATTLE_COMPUTER_SCREEN = new Identifier(MOD_ID, "open_battle_computer_screen");
 
@@ -92,6 +98,7 @@ public class Holo implements ModInitializer {
         ModEntities.init();
         ModBlocks.initialize();
         ModItems.initialize();
+        TerminalCommandParser.initCommands();
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(CommandManager.literal("holo_loreMode").requires(serverCommandSource -> serverCommandSource.hasPermissionLevel(2)).executes(context -> {
@@ -144,12 +151,24 @@ public class Holo implements ModInitializer {
         ServerPlayConnectionEvents.DISCONNECT.register(((serverPlayNetworkHandler, minecraftServer) -> {
             for (FakestPlayer clone : StateSaverAndLoader.getPlayerState(serverPlayNetworkHandler.player).clones) {
                 clone.getServer().getPlayerManager().remove(clone);
-                clone.getServer().getPlayerManager().sendToAll(new PlayerRemoveS2CPacket(List.of(clone.getUuid())));
                 clone.remove(Entity.RemovalReason.DISCARDED);
             }
         }));
 
         ArrayList<ServerPlayerEntity> bufferedKeys = new ArrayList<>();
+        ServerPlayNetworking.registerGlobalReceiver(Holo.REQUEST_TERMINAL_AUTOCOMPLETE, (minecraftServer, serverPlayerEntity, serverPlayNetworkHandler, packetByteBuf, packetSender) -> {
+            PacketByteBuf data = PacketByteBufs.create();
+            for (TerminalCommand value : TerminalCommandParser.nameAndCommands.values()) {
+                value.autoCompletion(serverPlayerEntity).forEach(data::writeString);
+            }
+            ServerPlayNetworking.send(serverPlayerEntity, SEND_TERMINAL_AUTOCOMPLETE, data);
+        });
+        ServerPlayNetworking.registerGlobalReceiver(Holo.TERMINAL_COMMAND, (minecraftServer, serverPlayerEntity, serverPlayNetworkHandler, packetByteBuf, packetSender) -> {
+            String command = packetByteBuf.readString();
+            if (StateSaverAndLoader.getPlayerState(serverPlayerEntity).inHoloMode) {
+                serverPlayerEntity.sendMessage(TerminalCommandParser.findAndRunCommand(command, serverPlayerEntity));
+            }
+        });
         ServerPlayNetworking.registerGlobalReceiver(Holo.SWAP_PACKET, (minecraftServer, serverPlayerEntity, serverPlayNetworkHandler, packetByteBuf, packetSender) -> {
             if (StateSaverAndLoader.getPlayerState(serverPlayerEntity).inHoloMode) {
                 if (!bufferedKeys.contains(serverPlayerEntity)) {
@@ -196,8 +215,8 @@ public class Holo implements ModInitializer {
                 if (entry.getValue().size() >= entry.getKey().count || (entry.getValue().size() >= 2 && entry.getKey().start)) {
                     entry.getKey().start = false;
                     for (PlayerEntity player : entry.getValue()) {
-                        FakestPlayer player1 = summonNewBody(player, StateSaverAndLoader.getPlayerState(player).inHoloMode, HologramType.NORMAL);
-                        FakestPlayer player2 = summonNewBody(player, true, HologramType.BATTLE_DUEL);
+                        FakestPlayer player1 = summonNewBody(player, StateSaverAndLoader.getPlayerState(player).inHoloMode, HologramType.NORMAL, "duel_holo");
+                        FakestPlayer player2 = summonNewBody(player, true, HologramType.BATTLE_DUEL, "duel_holo");
 
                         StateSaverAndLoader.getPlayerState(player).inHoloMode = true;
                         StateSaverAndLoader.getPlayerState(player).hologramType = HologramType.BATTLE_DUEL;
@@ -233,6 +252,20 @@ public class Holo implements ModInitializer {
                 }
             }
         }));
+        ServerTickEvents.END_SERVER_TICK.register((s)->{
+            s.getPlayerManager().getPlayerList().forEach((p)-> {
+                ArrayList<FakestPlayer> clonestoYoink = new ArrayList<>();
+                StateSaverAndLoader.getPlayerState(p).clones.removeIf((fp) -> {
+                    if (!fp.isAlive()) {
+                        clonestoYoink.add(fp);
+                    }
+                    return !fp.isAlive();
+                });
+                for (FakestPlayer fp : clonestoYoink) {
+                    fp.getServer().getPlayerManager().remove(fp);
+                }
+            });
+        });
         ServerTickEvents.START_WORLD_TICK.register((serverWorld -> {
             serverWorld.getPlayers().forEach((p)->{
                 if (StateSaverAndLoader.getPlayerState(p).inHoloMode) {
@@ -343,7 +376,7 @@ public class Holo implements ModInitializer {
         return false;
     }
 
-    private static void swapBody(PlayerEntity player, FakestPlayer bodyToTake, boolean bodyStays) {
+    public static void swapBody(PlayerEntity player, FakestPlayer bodyToTake, boolean bodyStays) {
         player.dismountVehicle();
 
         if (bodyStays)
@@ -352,6 +385,7 @@ public class Holo implements ModInitializer {
         if (bodyToTake != null) {
             StateSaverAndLoader.getPlayerState(player).clones.remove(bodyToTake);
             StateSaverAndLoader.getPlayerState(player).inHoloMode = bodyToTake.isHologram;
+            StateSaverAndLoader.getPlayerState(player).holoName = bodyToTake.holoName;
             StateSaverAndLoader.getPlayerState(player).hologramType = bodyToTake.type;
 
             tinyPlayerClone(bodyToTake, (ServerPlayerEntity) player);
@@ -372,8 +406,10 @@ public class Holo implements ModInitializer {
         }
         if (bodyToTake != null) {
             StateSaverAndLoader.getPlayerState(player).inHoloMode = holo;
-            if (holo)
+            StateSaverAndLoader.getPlayerState(player).holoName = bodyToTake.holoName;
+            if (holo) {
                 StateSaverAndLoader.getPlayerState(player).hologramType = bodyToTake.type;
+            }
             tinyPlayerClone(bodyToTake, (ServerPlayerEntity) player);
             player.requestTeleport(bodyToTake.getPos().x, bodyToTake.getPos().y, bodyToTake.getPos().z);
             StateSaverAndLoader.getPlayerState(player).clones.remove(bodyToTake);
@@ -386,7 +422,7 @@ public class Holo implements ModInitializer {
         summonBody(player, StateSaverAndLoader.getPlayerState(player).inHoloMode);
     }
 
-    public static FakestPlayer summonNewBody(PlayerEntity player, boolean holoMode, HologramType type) {
+    public static FakestPlayer summonNewBody(PlayerEntity player, boolean holoMode, HologramType type, String holoName) {
         GameProfile profile = new GameProfile(Holo.getFreeUUID(), "");
         profile.getProperties().putAll(player.getGameProfile().getProperties());
         FakestPlayer fakePlayer = FakestPlayer.get((ServerWorld) player.getWorld(), profile, player.getEntityName(), player.getUuid());
@@ -398,6 +434,10 @@ public class Holo implements ModInitializer {
         ((ServerWorld) player.getWorld()).onPlayerConnected(fakePlayer);
         fakePlayer.isHologram = holoMode;
         fakePlayer.type = type;
+        fakePlayer.holoName = holoName;
+        if (!fakePlayer.isHologram) {
+            fakePlayer.holoName = player.getName().getString();
+        }
         if (fakePlayer.isHologram) {
             HoloModeUpdates.sendHoloModeUpdate(fakePlayer);
         }
@@ -409,7 +449,7 @@ public class Holo implements ModInitializer {
     }
 
     public static void summonBody(PlayerEntity player, boolean holoMode) {
-        FakestPlayer fakePlayer = summonNewBody(player,holoMode,StateSaverAndLoader.getPlayerState(player).hologramType);
+        FakestPlayer fakePlayer = summonNewBody(player,holoMode,StateSaverAndLoader.getPlayerState(player).hologramType, StateSaverAndLoader.getPlayerState(player).holoName);
         Holo.tinyPlayerClone(player, fakePlayer);
     }
 

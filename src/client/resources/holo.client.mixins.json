@@ -8,7 +8,9 @@
     "EntityRenderDispatcherMixin",
     "HoloSkinMixin",
     "HoloSkinPlayerMixin",
-    "HoloUIMixin"
+    "HoloUIMixin",
+    "TerminalInputSuggestorMixin",
+    "UnfocusChatInTerminal"
   ],
   "injectors": {
     "defaultRequire": 1

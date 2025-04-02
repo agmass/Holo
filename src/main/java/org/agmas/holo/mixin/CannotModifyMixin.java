@@ -27,8 +27,12 @@ import java.util.List;
 public class CannotModifyMixin {
     @Inject(method = "canPlayerModifyAt", at = @At("HEAD"), cancellable = true)
     public void sendShellUpdate(PlayerEntity player, BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
+        if (StateSaverAndLoader.getPlayerState(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
+            cir.setReturnValue(false);
+            cir.cancel();
+        }
         if (StateSaverAndLoader.getPlayerState(player).inHoloMode && !StateSaverAndLoader.getPlayerState(player).loreAccurate) {
-            if (!StateSaverAndLoader.getPlayerState(player).hologramType.equals(HologramType.BATTLE) && !StateSaverAndLoader.getPlayerState(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
+            if (!StateSaverAndLoader.getPlayerState(player).hologramType.equals(HologramType.BATTLE)) {
                 cir.setReturnValue(false);
                 cir.cancel();
             }

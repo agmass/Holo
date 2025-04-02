@@ -2,17 +2,12 @@ package org.agmas.holo.state;
 
 import com.mojang.authlib.GameProfile;
 import com.mojang.serialization.Dynamic;
-import net.fabricmc.loader.impl.util.log.Log;
-import net.fabricmc.loader.impl.util.log.LogCategory;
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtOps;
-import net.minecraft.network.packet.s2c.play.PlayerListS2CPacket;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.PersistentState;
 import net.minecraft.world.PersistentStateManager;
@@ -23,8 +18,8 @@ import org.agmas.holo.util.HologramType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class StateSaverAndLoader extends PersistentState {
 
@@ -46,9 +41,13 @@ public class StateSaverAndLoader extends PersistentState {
             playerData.inHoloMode = playersNbt.getCompound(key).getBoolean("inHoloMode");
             playerData.loreAccurate = playersNbt.getCompound(key).getBoolean("loreMode");
             playerData.cloneCompound = playersNbt.getCompound(key).getCompound("clones");
-            playerData.hologramType = HologramType.valueOf(playersNbt.getCompound(key).getString("type"));
+            if (playersNbt.getCompound(key).contains("type", NbtElement.INT_TYPE))
+                playerData.hologramType = HologramType.values()[playersNbt.getCompound(key).getInt("type")];
+            if (playersNbt.getCompound(key).contains("totalHolosCreated", NbtElement.INT_TYPE))
+                playerData.totalHolosCreated = playersNbt.getCompound(key).getInt("totalHolosCreated");
 
             if (playerData.cloneCompound != null) {
+                AtomicInteger i = new AtomicInteger();
                 playerData.cloneCompound.getKeys().forEach((k -> {
                     FakestPlayer fakePlayer = FakestPlayer.get(Holo.server.getOverworld(), new GameProfile(Holo.getFreeUUID(), ""), playerData.cloneCompound.getCompound(k).getString("ownerName"), UUID.fromString(key));
                     fakePlayer.readCustomDataFromNbt(playerData.cloneCompound.getCompound(k));
@@ -57,7 +56,17 @@ public class StateSaverAndLoader extends PersistentState {
                     fakePlayer.setYaw((float) playerData.cloneCompound.getCompound(k).getDouble("Yaw"));
                     fakePlayer.isHologram = playerData.cloneCompound.getCompound(k).getBoolean("isHologram");
                     fakePlayer.worldName = (RegistryKey<World>) World.CODEC.parse(new Dynamic(NbtOps.INSTANCE, playerData.cloneCompound.getCompound(k).get("Dimension"))).result().get();
-                    fakePlayer.type = HologramType.valueOf(playersNbt.getCompound(key).getString("type"));
+                    if (playerData.cloneCompound.getCompound(k).contains("type", NbtElement.INT_TYPE)) {
+                        fakePlayer.type = HologramType.values()[playerData.cloneCompound.getCompound(k).getInt("type")];
+                    } else {
+                        fakePlayer.type = HologramType.NORMAL;
+                    }
+                    if (playerData.cloneCompound.getCompound(k).contains("HoloName", NbtElement.STRING_TYPE)) {
+                        fakePlayer.holoName = playerData.cloneCompound.getCompound(k).getString("HoloName");
+                    } else {
+                        fakePlayer.holoName = "h" + i.get();
+                    }
+                    i.getAndIncrement();
                     playerData.clones.add(fakePlayer);
 
                 }));
@@ -89,7 +98,8 @@ public class StateSaverAndLoader extends PersistentState {
             playerNbt.putBoolean("inHoloMode", playerData.inHoloMode);
             playerNbt.putBoolean("loreMode", playerData.loreAccurate);
             playerNbt.putString("playerName", playerData.playerName);
-            playerNbt.putString("type", playerData.hologramType.name());
+            playerNbt.putInt("type", playerData.hologramType.ordinal());
+            playerNbt.putInt("totalHolosCreated", playerData.totalHolosCreated);
 
             playerData.clones.forEach((fakestPlayer -> {
                 NbtCompound singleCloneNbt = new NbtCompound();
@@ -110,7 +120,9 @@ public class StateSaverAndLoader extends PersistentState {
         public boolean inHoloMode = false;
         public boolean loreAccurate = false;
         public HologramType hologramType = HologramType.NORMAL;
+        public int totalHolosCreated = 0;
         public String playerName = "";
+        public String holoName = "";
         public ArrayList<FakestPlayer> clones = new ArrayList<>();
         public NbtCompound cloneCompound;
     }

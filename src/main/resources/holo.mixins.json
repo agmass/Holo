@@ -8,6 +8,7 @@
     "CannotModifyMixin",
     "HoloUpdateMixin",
     "NoFakeDeathMessageMixin",
+    "NoItemPickupMixin",
     "PlayerListPacketMixin",
     "SilentHologramListenerMixin",
     "compat.InfernumEffugiumMixin"

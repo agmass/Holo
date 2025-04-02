@@ -35,7 +35,20 @@ public class HologramSpawnEgg extends Item {
             if (!user.getAbilities().creativeMode) {
                 itemStack.decrement(1);
             }
-            Holo.summonNewBody(user, true, type);
+            boolean nameAvailable = false;
+            int loops = StateSaverAndLoader.getPlayerState(user).totalHolosCreated;
+            while (!nameAvailable) {
+                loops++;
+                nameAvailable = true;
+                for (FakestPlayer c : StateSaverAndLoader.getPlayerState(user).clones) {
+                    if (c.holoName.equals("h" + loops)) {
+                        nameAvailable = false;
+                        break;
+                    }
+                }
+            }
+            FakestPlayer fp = Holo.summonNewBody(user, true, type,"h" + loops);
+            StateSaverAndLoader.getPlayerState(user).totalHolosCreated++;
         }
         return super.use(world, user, hand);
     }

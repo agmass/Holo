@@ -35,6 +35,7 @@ import org.agmas.holo.ModEntities;
 import org.agmas.holo.client.models.WardenHornsFeatureRenderer;
 import org.agmas.holo.client.models.WardensHorns;
 import org.agmas.holo.client.screen.DuelComputerScreen;
+import org.agmas.holo.client.screen.TerminalChatScreen;
 import org.agmas.holo.state.StateSaverAndLoader;
 import org.agmas.holo.util.HologramType;
 import org.lwjgl.glfw.GLFW;
@@ -48,6 +49,7 @@ public class HoloClient implements ClientModInitializer {
     public static HashMap<UUID, HologramType> playersInHolo = new HashMap<>();
     public static HashMap<UUID, Integer> shownEntities = new HashMap<>();
     private static KeyBinding keyBinding;
+    private static KeyBinding terminalBind;
     public static HologramType hologramType = null;
     private static final ManagedShaderEffect GREYSCALE_SHADER = ShaderEffectManager.getInstance()
             .manage(Identifier.of("holo", "shaders/silent.json"));
@@ -66,6 +68,12 @@ public class HoloClient implements ClientModInitializer {
                 GLFW.GLFW_KEY_B, // The keycode of the key
                 "category.holo.hologramcontrols" // The translation key of the keybinding's category.
         ));
+        terminalBind = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.holo.openTerminal", // The translation key of the keybinding's name
+                InputUtil.Type.KEYSYM, // The type of the keybinding, KEYSYM for keyboard, MOUSE for mouse.
+                GLFW.GLFW_KEY_U, // The keycode of the key
+                "category.holo.hologramcontrols" // The translation key of the keybinding's category.
+        ));
 
         ClientPlayConnectionEvents.INIT.register(((clientPlayNetworkHandler, minecraftClient) -> {
                     ClientPlayNetworking.registerReceiver(Holo.OPEN_BATTLE_COMPUTER_SCREEN, (client, handler, buf, responseSender) -> {
@@ -79,11 +87,27 @@ public class HoloClient implements ClientModInitializer {
             hologramType = null;
             playersInHolo.remove(uuid);
         });
-        ShaderEffectRenderCallback.EVENT.register(tickDelta -> {
-            if (hologramType != null) {
-                if (hologramType.equals(HologramType.SILENT)) {
-                    GREYSCALE_SHADER.render(tickDelta);
+        ClientPlayNetworking.registerGlobalReceiver(Holo.SEND_TERMINAL_AUTOCOMPLETE, (client, handler, buf, responseSender) -> {
+            boolean complete = false;
+            TerminalChatScreen.possibleSuggestions.clear();
+            while (!complete) {
+                try {
+                    String s = buf.readString();
+                    if (s == null) {
+                        complete = true;
+                        break;
+                    }
+                    TerminalChatScreen.possibleSuggestions.add(s);
+                    TerminalChatScreen.refresh = true;
+
+                } catch (Exception e) {
+                    complete = true;
                 }
+            }
+        });
+        ShaderEffectRenderCallback.EVENT.register(tickDelta -> {
+            if ((hologramType != null && hologramType.equals(HologramType.SILENT)) || MinecraftClient.getInstance().currentScreen instanceof TerminalChatScreen) {
+                GREYSCALE_SHADER.render(tickDelta);
             }
         });
 
@@ -114,11 +138,20 @@ public class HoloClient implements ClientModInitializer {
                 shownEntities.put(k, shownEntities.get(k)-1);
                 return shownEntities.get(k) <= 0;
             });
-            while (keyBinding.wasPressed()) {
-                PacketByteBuf data = PacketByteBufs.create();
-                client.execute(() -> {
-                    ClientPlayNetworking.send(Holo.SWAP_PACKET, data);
-                });
+            if (hologramType != null) {
+                while (terminalBind.wasPressed()) {
+                    PacketByteBuf data = PacketByteBufs.create();
+                    client.execute(() -> {
+                        ClientPlayNetworking.send(Holo.REQUEST_TERMINAL_AUTOCOMPLETE, data);
+                    });
+                    client.setScreen(new TerminalChatScreen(""));
+                }
+                while (keyBinding.wasPressed()) {
+                    PacketByteBuf data = PacketByteBufs.create();
+                    client.execute(() -> {
+                        ClientPlayNetworking.send(Holo.SWAP_PACKET, data);
+                    });
+                }
             }
         });
     }

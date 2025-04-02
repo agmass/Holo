@@ -18,8 +18,7 @@ public class NoFakeDeathMessageMixin {
     @Redirect(method = "onDeath", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/GameRules;getBoolean(Lnet/minecraft/world/GameRules$Key;)Z"))
     public boolean sendShellUpdate(GameRules instance, GameRules.Key<GameRules.BooleanRule> rule) {
         if (((ServerPlayerEntity)(Object)this) instanceof FakestPlayer fp) {
-            if (fp.isHologram)
-                return false;
+            return !fp.isHologram;
         }
         return true;
     }
