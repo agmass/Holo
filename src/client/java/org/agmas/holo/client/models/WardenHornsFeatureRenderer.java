@@ -30,7 +30,7 @@ public class WardenHornsFeatureRenderer extends FeatureRenderer<AbstractClientPl
 
     @Override
     protected Identifier getTexture(AbstractClientPlayerEntity entity) {
-        return new Identifier(Holo.MOD_ID,"textures/entity/wardenhorns.png");
+        return Identifier.of(Holo.MOD_ID,"textures/entity/wardenhorns.png");
     }
 
     @Override
@@ -44,7 +44,7 @@ public class WardenHornsFeatureRenderer extends FeatureRenderer<AbstractClientPl
                 int m = LivingEntityRenderer.getOverlay(entity, 0.0F);
                 matrices.translate(0, entity.isSneaky() ? -1.9F : -2.1875F, 0);
                 matrices.scale(1.3333334F, 1.3333334F, 1.3333334F);
-                horns.render(matrices, vertexConsumer, light, m, 0.75F, 0.75F, 1.0F, 0.5F);
+                horns.render(matrices, vertexConsumer, light, m, HoloClient.HOLO_COLOR);
             }
         }
 

@@ -9,7 +9,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.world.World;
 import org.agmas.holo.Holo;
-import org.agmas.holo.state.StateSaverAndLoader;
+import org.agmas.holo.state.HoloNbtManager;
 import org.agmas.holo.util.FakestPlayer;
 import org.agmas.holo.util.HologramType;
 
@@ -25,8 +25,8 @@ public class HologramSpawnEgg extends Item {
     @Override
     public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
         if (!world.isClient) {
-            if (!StateSaverAndLoader.getPlayerState(user).loreAccurate) {
-                if (StateSaverAndLoader.getPlayerState(user).clones.size() >= 4) {
+            if (!HoloNbtManager.getPlayerState(user).loreAccurate) {
+                if (HoloNbtManager.getPlayerState(user).clones.size() >= 4) {
                     user.sendMessage(Text.literal("Too many clones!").formatted(Formatting.RED));
                     return super.use(world, user, hand);
                 }
@@ -36,11 +36,11 @@ public class HologramSpawnEgg extends Item {
                 itemStack.decrement(1);
             }
             boolean nameAvailable = false;
-            int loops = StateSaverAndLoader.getPlayerState(user).totalHolosCreated;
+            int loops = HoloNbtManager.getPlayerState(user).totalHolosCreated;
             while (!nameAvailable) {
                 loops++;
                 nameAvailable = true;
-                for (FakestPlayer c : StateSaverAndLoader.getPlayerState(user).clones) {
+                for (FakestPlayer c : HoloNbtManager.getPlayerState(user).clones) {
                     if (c.holoName.equals("h" + loops)) {
                         nameAvailable = false;
                         break;
@@ -48,7 +48,7 @@ public class HologramSpawnEgg extends Item {
                 }
             }
             FakestPlayer fp = Holo.summonNewBody(user, true, type,"h" + loops);
-            StateSaverAndLoader.getPlayerState(user).totalHolosCreated++;
+            HoloNbtManager.getPlayerState(user).totalHolosCreated++;
         }
         return super.use(world, user, hand);
     }

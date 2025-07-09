@@ -6,5 +6,6 @@ public enum HologramType {
     BATTLE,
     BATTLE_DUEL,
     SILENT,
-    ENDER
+    ENDER,
+    HUMAN
 }

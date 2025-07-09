@@ -4,13 +4,12 @@ import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerListS2CPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
 import org.agmas.holo.Holo;
-import org.agmas.holo.state.StateSaverAndLoader;
+import org.agmas.holo.state.HoloNbtManager;
+import org.agmas.holo.util.payloads.HoloModeSwitchS2CPacket;
 
 import java.util.List;
 
@@ -22,12 +21,12 @@ public class HoloModeUpdates {
         MinecraftServer server = player.getServer();
 
         PacketByteBuf data = PacketByteBufs.create();
-        StateSaverAndLoader.getPlayerState(player).inHoloMode = false;
+        HoloNbtManager.getPlayerState(player).inHoloMode = false;
         data.writeUuid(player.getUuid());
 
         server.execute(() -> {
             server.getPlayerManager().getPlayerList().forEach((p)->{
-                ServerPlayNetworking.send(p, Holo.HUMAN_MODE, data);
+                ServerPlayNetworking.send(p, new HoloModeSwitchS2CPacket(player.getUuid(), HologramType.HUMAN));
             });
         });
     }
@@ -38,7 +37,7 @@ public class HoloModeUpdates {
 
         server.execute(() -> {
             server.getPlayerManager().getPlayerList().forEach((p)->{
-                StateSaverAndLoader.getPlayerState(p).clones.forEach((pl)->{
+                HoloNbtManager.getPlayerState(p).clones.forEach((pl)->{
                     player.networkHandler.sendPacket(PlayerListS2CPacket.entryFromPlayer(List.of(pl)));
                 });
             });
@@ -51,16 +50,13 @@ public class HoloModeUpdates {
 
         server.execute(() -> {
             server.getPlayerManager().getPlayerList().forEach((p)->{
-                StateSaverAndLoader.getPlayerState(p).clones.forEach((pl)->{
+                HoloNbtManager.getPlayerState(p).clones.forEach((pl)->{
                     if (pl.isHologram) {
                         HoloModeUpdates.sendHoloModeUpdate(pl);
                     }
                 });
-                if (StateSaverAndLoader.getPlayerState(p).inHoloMode) {
-                    PacketByteBuf data = PacketByteBufs.create();
-                    data.writeUuid(p.getUuid());
-                    data.writeEnumConstant(StateSaverAndLoader.getPlayerState(p).hologramType);
-                    ServerPlayNetworking.send(player, Holo.HOLO_MODE, data);
+                if (HoloNbtManager.getPlayerState(p).inHoloMode) {
+                    ServerPlayNetworking.send(player, new HoloModeSwitchS2CPacket(player.getUuid(), HoloNbtManager.getPlayerState(p).hologramType));
                 }
             });
         });
@@ -71,18 +67,18 @@ public class HoloModeUpdates {
 
         MinecraftServer server = player.getServer();
 
-        PacketByteBuf data = PacketByteBufs.create();
-        StateSaverAndLoader.getPlayerState(player).inHoloMode = true;
-        data.writeUuid(player.getUuid());
+        HoloNbtManager.getPlayerState(player).inHoloMode = true;
+        HologramType type;
         if (player instanceof FakestPlayer fp) {
-            data.writeEnumConstant(fp.type);
+            type = fp.type;
         } else {
-            data.writeEnumConstant(StateSaverAndLoader.getPlayerState(player).hologramType);
+            type = HoloNbtManager.getPlayerState(player).hologramType;
         }
 
         server.execute(() -> {
             server.getPlayerManager().getPlayerList().forEach((p)->{
-                ServerPlayNetworking.send(p, Holo.HOLO_MODE, data);
+                ServerPlayNetworking.send(p, new HoloModeSwitchS2CPacket(player.getUuid(), type));
+
             });
         });
     }

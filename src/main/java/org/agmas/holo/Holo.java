@@ -2,69 +2,50 @@ package org.agmas.holo;
 
 import com.google.common.collect.ImmutableMultimap;
 import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.HttpAuthenticationService;
-import com.mojang.authlib.exceptions.AuthenticationException;
-import com.mojang.authlib.yggdrasil.response.MinecraftProfilePropertiesResponse;
-import com.mojang.util.UUIDTypeAdapter;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry;
+import net.fabricmc.fabric.api.attachment.v1.AttachmentType;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerBlockEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.fabricmc.loader.impl.util.log.Log;
-import net.fabricmc.loader.impl.util.log.LogCategory;
-import net.minecraft.block.Blocks;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
+import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.EntityAttribute;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
 import net.minecraft.entity.attribute.EntityAttributes;
-import net.minecraft.entity.damage.DamageSource;
-import net.minecraft.entity.damage.DamageType;
-import net.minecraft.entity.damage.DamageTypes;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemGroups;
 import net.minecraft.nbt.NbtCompound;
-import net.minecraft.network.ClientConnection;
-import net.minecraft.network.NetworkSide;
-import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.packet.CustomPayload;
+import net.minecraft.network.packet.s2c.common.DisconnectS2CPacket;
 import net.minecraft.network.packet.s2c.play.*;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.server.BannedPlayerEntry;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.PlayerManager;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.stat.Stat;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.GameMode;
-import net.minecraft.world.TeleportTarget;
-import net.minecraft.world.World;
-import net.minecraft.world.biome.source.BiomeAccess;
 import net.minecraft.world.border.WorldBorder;
-import org.agmas.holo.state.StateSaverAndLoader;
+import org.agmas.holo.state.HoloNbtManager;
 import org.agmas.holo.terminalCommands.TerminalCommand;
 import org.agmas.holo.terminalCommands.TerminalCommandParser;
 import org.agmas.holo.util.BattleHologramComputerEntry;
 import org.agmas.holo.util.FakestPlayer;
 import org.agmas.holo.util.HoloModeUpdates;
 import org.agmas.holo.util.HologramType;
+import org.agmas.holo.util.payloads.*;
 
-import java.net.URL;
 import java.util.*;
 
 public class Holo implements ModInitializer {
@@ -76,22 +57,22 @@ public class Holo implements ModInitializer {
     public static HashMap<BattleHologramComputerEntry, ArrayList<PlayerEntity>> playersWaitingForBattle = new HashMap<>();
     public static ArrayList<ArrayList<PlayerEntity>> fights = new ArrayList<>();
 
-    public static final Identifier HUMAN_MODE = new Identifier(MOD_ID, "human_mode");
-    public static final Identifier HOLO_MODE = new Identifier(MOD_ID, "holo_mode");
-    public static final Identifier SWAP_PACKET = new Identifier(MOD_ID, "swap");
 
-    public static final Identifier TERMINAL_COMMAND = new Identifier(MOD_ID, "terminal_command");
+    public static final CustomPayload.Id<SwapC2SPacket> SWAP_PACKET = SwapC2SPacket.ID;
 
-    public static final Identifier SEND_TERMINAL_AUTOCOMPLETE = new Identifier(MOD_ID, "terminal_autocomplete");
-    public static final Identifier REQUEST_TERMINAL_AUTOCOMPLETE = new Identifier(MOD_ID, "request_terminal_autocomplete");
+    public static final CustomPayload.Id<HoloModeSwitchS2CPacket> HOLO_MODE = HoloModeSwitchS2CPacket.ID;
 
-    public static final Identifier TEMPORARILY_SHOW_ENTITY = new Identifier(MOD_ID, "temporarily_show_entity");
-    public static final Identifier OPEN_BATTLE_COMPUTER_SCREEN = new Identifier(MOD_ID, "open_battle_computer_screen");
+    public static final CustomPayload.Id<TerminalCommandC2SPacket> TERMINAL_COMMAND = TerminalCommandC2SPacket.ID;
 
-    public static UUID HUMAN_DAMAGE_MODIFIER_ID = UUID.fromString("88d46329-20a2-42a8-8d7b-0b11fdcda31f");
-    public static UUID HUMAN_DAMAGE_SPEED_MODIFIER_ID = UUID.fromString("5da6b87c-bd81-4068-b9a2-386adaf38762");
-    public static UUID HUMAN_SPEED_MODIFIER_ID = UUID.fromString("bc5dd5c1-4594-4f2e-9d60-2e30f69d02e6");
-    public static UUID HUMAN_HEALTH_ID = UUID.fromString("87a934eb-7c72-400e-9ae7-09220be58577");
+    public static final CustomPayload.Id<SendTerminalAutocompleteS2CPacket> SEND_TERMINAL_AUTOCOMPLETE = SendTerminalAutocompleteS2CPacket.ID;
+    public static final CustomPayload.Id<RequestTerminalAutocompleteC2SPacket> REQUEST_TERMINAL_AUTOCOMPLETE = RequestTerminalAutocompleteC2SPacket.ID;
+    public static final CustomPayload.Id<TemporarilyShowEntityS2CPacket> TEMPORARILY_SHOW_ENTITY = TemporarilyShowEntityS2CPacket.ID;
+    public static final Identifier OPEN_BATTLE_COMPUTER_SCREEN = Identifier.of(MOD_ID, "open_battle_computer_screen");
+
+    public static Identifier HUMAN_DAMAGE_MODIFIER_ID = Identifier.of(Holo.MOD_ID, "human_damage");
+    public static Identifier HUMAN_DAMAGE_SPEED_MODIFIER_ID = Identifier.of(Holo.MOD_ID, "human_damage_speed");
+    public static Identifier HUMAN_SPEED_MODIFIER_ID = Identifier.of(Holo.MOD_ID, "human_speed");
+    public static Identifier HUMAN_HEALTH_ID = Identifier.of(Holo.MOD_ID, "human_health");
 
     @Override
     public void onInitialize() {
@@ -99,15 +80,22 @@ public class Holo implements ModInitializer {
         ModBlocks.initialize();
         ModItems.initialize();
         TerminalCommandParser.initCommands();
+        ResourceManagerHelper.registerBuiltinResourcePack(Identifier.of(MOD_ID,"noholooverlay"), FabricLoader.getInstance().getModContainer(MOD_ID).get(), ResourcePackActivationType.NORMAL);
+        PayloadTypeRegistry.playS2C().register(HoloModeSwitchS2CPacket.ID, HoloModeSwitchS2CPacket.CODEC);
+        PayloadTypeRegistry.playS2C().register(SendTerminalAutocompleteS2CPacket.ID, SendTerminalAutocompleteS2CPacket.CODEC);
+        PayloadTypeRegistry.playS2C().register(TemporarilyShowEntityS2CPacket.ID, TemporarilyShowEntityS2CPacket.CODEC);
+        PayloadTypeRegistry.playC2S().register(SwapC2SPacket.ID, SwapC2SPacket.CODEC);
+        PayloadTypeRegistry.playC2S().register(TerminalCommandC2SPacket.ID, TerminalCommandC2SPacket.CODEC);
+        PayloadTypeRegistry.playC2S().register(RequestTerminalAutocompleteC2SPacket.ID, RequestTerminalAutocompleteC2SPacket.CODEC);
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(CommandManager.literal("holo_loreMode").requires(serverCommandSource -> serverCommandSource.hasPermissionLevel(2)).executes(context -> {
                 if (context.getSource().getPlayer() != null) {
                     switchShellMode(context.getSource().getPlayer(), true, false);
-                    StateSaverAndLoader.getPlayerState(context.getSource().getPlayer()).loreAccurate = !StateSaverAndLoader.getPlayerState(context.getSource().getPlayer()).loreAccurate;
+                    HoloNbtManager.getPlayerState(context.getSource().getPlayer()).loreAccurate = !HoloNbtManager.getPlayerState(context.getSource().getPlayer()).loreAccurate;
                     getHumanAttributes(context.getSource().getPlayer()).forEach((attributeEntry, modifier) -> {
                         if (context.getSource().getPlayer().getAttributeInstance(attributeEntry) != null) {
-                            if (!context.getSource().getPlayer().getAttributeInstance(attributeEntry).hasModifier(modifier)) {
+                            if (!context.getSource().getPlayer().getAttributeInstance(attributeEntry).hasModifier(modifier.id())) {
                                 context.getSource().getPlayer().getAttributeInstance(attributeEntry).addPersistentModifier(modifier);
                             }
                         }
@@ -133,11 +121,11 @@ public class Holo implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register((srv)->{
             for (PlayerEntity player : srv.getPlayerManager().getPlayerList()) {
 
-                if (StateSaverAndLoader.getPlayerState(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
+                if (HoloNbtManager.getPlayerState(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
                     swapBody(player,false,false);
                     updateAttributesAndUpdateMode(player);
                 }
-                for (FakestPlayer clone : StateSaverAndLoader.getPlayerState(player).clones) {
+                for (FakestPlayer clone : HoloNbtManager.getPlayerState(player).clones) {
                     player.getWorld().getServer().getPlayerManager().sendToAll(new PlayerRemoveS2CPacket(List.of(clone.getUuid())));
                     clone.getServer().getPlayerManager().remove(clone);
                 }
@@ -147,45 +135,55 @@ public class Holo implements ModInitializer {
             server = srv;
             fights.clear();
             playersWaitingForBattle.clear();
+            if (server.getOverworld().hasAttached(HoloNbtManager.holoData)) {
+                HoloNbtManager.INSTANCE = HoloNbtManager.createFromNbt(server.getOverworld().getAttached(HoloNbtManager.holoData));
+            } else {
+                HoloNbtManager.INSTANCE = new HoloNbtManager();
+            }
+        });
+        ServerLifecycleEvents.SERVER_STOPPING.register((srv)->{
+            NbtCompound holoDat = new NbtCompound();
+            HoloNbtManager.getServerState(srv).writeNbt(holoDat);
+            srv.getOverworld().setAttached(HoloNbtManager.holoData, holoDat);
         });
         ServerPlayConnectionEvents.DISCONNECT.register(((serverPlayNetworkHandler, minecraftServer) -> {
-            for (FakestPlayer clone : StateSaverAndLoader.getPlayerState(serverPlayNetworkHandler.player).clones) {
+            for (FakestPlayer clone : HoloNbtManager.getPlayerState(serverPlayNetworkHandler.player).clones) {
                 clone.getServer().getPlayerManager().remove(clone);
                 clone.remove(Entity.RemovalReason.DISCARDED);
             }
         }));
 
         ArrayList<ServerPlayerEntity> bufferedKeys = new ArrayList<>();
-        ServerPlayNetworking.registerGlobalReceiver(Holo.REQUEST_TERMINAL_AUTOCOMPLETE, (minecraftServer, serverPlayerEntity, serverPlayNetworkHandler, packetByteBuf, packetSender) -> {
-            PacketByteBuf data = PacketByteBufs.create();
+        ServerPlayNetworking.registerGlobalReceiver(Holo.REQUEST_TERMINAL_AUTOCOMPLETE, (payload, context) -> {
+            ArrayList<String> commands = new ArrayList<>();
             for (TerminalCommand value : TerminalCommandParser.nameAndCommands.values()) {
-                value.autoCompletion(serverPlayerEntity).forEach(data::writeString);
+                commands.addAll(value.autoCompletion(context.player()));
             }
-            ServerPlayNetworking.send(serverPlayerEntity, SEND_TERMINAL_AUTOCOMPLETE, data);
+            ServerPlayNetworking.send(context.player(), new SendTerminalAutocompleteS2CPacket(commands));
         });
-        ServerPlayNetworking.registerGlobalReceiver(Holo.TERMINAL_COMMAND, (minecraftServer, serverPlayerEntity, serverPlayNetworkHandler, packetByteBuf, packetSender) -> {
-            String command = packetByteBuf.readString();
-            if (StateSaverAndLoader.getPlayerState(serverPlayerEntity).inHoloMode) {
-                serverPlayerEntity.sendMessage(TerminalCommandParser.findAndRunCommand(command, serverPlayerEntity));
+        ServerPlayNetworking.registerGlobalReceiver(Holo.TERMINAL_COMMAND, (payload, context) -> {
+            String command = payload.command();
+            if (HoloNbtManager.getPlayerState(context.player()).inHoloMode) {
+                context.player().sendMessage(TerminalCommandParser.findAndRunCommand(command, context.player()));
             }
         });
-        ServerPlayNetworking.registerGlobalReceiver(Holo.SWAP_PACKET, (minecraftServer, serverPlayerEntity, serverPlayNetworkHandler, packetByteBuf, packetSender) -> {
-            if (StateSaverAndLoader.getPlayerState(serverPlayerEntity).inHoloMode) {
-                if (!bufferedKeys.contains(serverPlayerEntity)) {
-                    bufferedKeys.add(serverPlayerEntity);
+        ServerPlayNetworking.registerGlobalReceiver(Holo.SWAP_PACKET, (payload, context) -> {
+            if (HoloNbtManager.getPlayerState(context.player()).inHoloMode) {
+                if (!bufferedKeys.contains(context.player())) {
+                    bufferedKeys.add(context.player());
                 }
             }
         });
         ServerPlayerEvents.AFTER_RESPAWN.register(((old, newPlayer, b) -> {
-            if (StateSaverAndLoader.getPlayerState(newPlayer).inHoloMode) {
+            if (HoloNbtManager.getPlayerState(newPlayer).inHoloMode) {
                 switchShellMode(newPlayer, true, false);
-            } else if (StateSaverAndLoader.getPlayerState(newPlayer).loreAccurate) {
+            } else if (HoloNbtManager.getPlayerState(newPlayer).loreAccurate) {
                 newPlayer.getServer().getPlayerManager().getUserBanList().add(new BannedPlayerEntry(newPlayer.getGameProfile()));
                 newPlayer.networkHandler.sendPacket(new DisconnectS2CPacket(Text.translatable("multiplayer.disconnect.banned")));
             }
         }));
         ServerPlayerEvents.ALLOW_DEATH.register(((serverPlayerEntity, damageSource, v) -> {
-            if (StateSaverAndLoader.getPlayerState(serverPlayerEntity).hologramType.equals(HologramType.BATTLE_DUEL)) {
+            if (HoloNbtManager.getPlayerState(serverPlayerEntity).hologramType.equals(HologramType.BATTLE_DUEL)) {
                 resetFromFight(serverPlayerEntity);
                 return false;
             }
@@ -195,7 +193,7 @@ public class Holo implements ModInitializer {
 
             fights.removeIf((fight)->{
                 fight.removeIf((p)->{
-                    if (!p.isPartOfGame() || !StateSaverAndLoader.getPlayerState(p).inHoloMode|| !StateSaverAndLoader.getPlayerState(p).hologramType.equals(HologramType.BATTLE_DUEL)) {
+                    if (!p.isPartOfGame() || !HoloNbtManager.getPlayerState(p).inHoloMode|| !HoloNbtManager.getPlayerState(p).hologramType.equals(HologramType.BATTLE_DUEL)) {
                         resetFromFight(p);
                         return true;
                     }
@@ -215,14 +213,14 @@ public class Holo implements ModInitializer {
                 if (entry.getValue().size() >= entry.getKey().count || (entry.getValue().size() >= 2 && entry.getKey().start)) {
                     entry.getKey().start = false;
                     for (PlayerEntity player : entry.getValue()) {
-                        FakestPlayer player1 = summonNewBody(player, StateSaverAndLoader.getPlayerState(player).inHoloMode, HologramType.NORMAL, "duel_holo");
+                        FakestPlayer player1 = summonNewBody(player, HoloNbtManager.getPlayerState(player).inHoloMode, HologramType.NORMAL, "duel_holo");
                         FakestPlayer player2 = summonNewBody(player, true, HologramType.BATTLE_DUEL, "duel_holo");
 
-                        StateSaverAndLoader.getPlayerState(player).inHoloMode = true;
-                        StateSaverAndLoader.getPlayerState(player).hologramType = HologramType.BATTLE_DUEL;
+                        HoloNbtManager.getPlayerState(player).inHoloMode = true;
+                        HoloNbtManager.getPlayerState(player).hologramType = HologramType.BATTLE_DUEL;
                         tinyPlayerClone((ServerPlayerEntity) player, player1);
                         tinyPlayerClone(player2, (ServerPlayerEntity) player);
-                        StateSaverAndLoader.getPlayerState(player).clones.remove(player2);
+                        HoloNbtManager.getPlayerState(player).clones.remove(player2);
                         player.requestTeleport(entry.getKey().pos.getX(),entry.getKey().pos.getY(),entry.getKey().pos.getZ());
                         player.getWorld().getServer().getPlayerManager().sendToAll(new PlayerRemoveS2CPacket(List.of(player1.getUuid())));
                         player2.remove(Entity.RemovalReason.DISCARDED);
@@ -255,7 +253,7 @@ public class Holo implements ModInitializer {
         ServerTickEvents.END_SERVER_TICK.register((s)->{
             s.getPlayerManager().getPlayerList().forEach((p)-> {
                 ArrayList<FakestPlayer> clonestoYoink = new ArrayList<>();
-                StateSaverAndLoader.getPlayerState(p).clones.removeIf((fp) -> {
+                HoloNbtManager.getPlayerState(p).clones.removeIf((fp) -> {
                     if (!fp.isAlive()) {
                         clonestoYoink.add(fp);
                     }
@@ -268,8 +266,8 @@ public class Holo implements ModInitializer {
         });
         ServerTickEvents.START_WORLD_TICK.register((serverWorld -> {
             serverWorld.getPlayers().forEach((p)->{
-                if (StateSaverAndLoader.getPlayerState(p).inHoloMode) {
-                    if (StateSaverAndLoader.getPlayerState(p).hologramType.equals(HologramType.BATTLE) || StateSaverAndLoader.getPlayerState(p).hologramType.equals(HologramType.BATTLE_DUEL)) {
+                if (HoloNbtManager.getPlayerState(p).inHoloMode) {
+                    if (HoloNbtManager.getPlayerState(p).hologramType.equals(HologramType.BATTLE) || HoloNbtManager.getPlayerState(p).hologramType.equals(HologramType.BATTLE_DUEL)) {
                         p.getHungerManager().setFoodLevel(19);
                     } else {
                         p.getHungerManager().setFoodLevel(20);
@@ -278,8 +276,8 @@ public class Holo implements ModInitializer {
             });
             for (ServerPlayerEntity bufferPlayer : bufferedKeys) {
                 if (bufferedKeys.contains(bufferPlayer)) {
-                    FakestPlayer fakestPlayer = StateSaverAndLoader.getPlayerState(bufferPlayer).clones.get(0);
-                    swapBody(bufferPlayer, fakestPlayer, !StateSaverAndLoader.getPlayerState(bufferPlayer).hologramType.equals(HologramType.BATTLE_DUEL));
+                    FakestPlayer fakestPlayer = HoloNbtManager.getPlayerState(bufferPlayer).clones.get(0);
+                    swapBody(bufferPlayer, fakestPlayer, !HoloNbtManager.getPlayerState(bufferPlayer).hologramType.equals(HologramType.BATTLE_DUEL));
                     updateAttributesAndUpdateMode(bufferPlayer);
                 }
             }
@@ -289,7 +287,7 @@ public class Holo implements ModInitializer {
 
 
     public static void resetFromFight(PlayerEntity player) {
-        if (player.isPartOfGame() && StateSaverAndLoader.getPlayerState(player).inHoloMode && StateSaverAndLoader.getPlayerState(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
+        if (player.isPartOfGame() && HoloNbtManager.getPlayerState(player).inHoloMode && HoloNbtManager.getPlayerState(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
             swapBody(player, false, false);
         }
         updateAttributesAndUpdateMode(player);
@@ -324,9 +322,6 @@ public class Holo implements ModInitializer {
         clone.setScore(original.getScore());
         if (original instanceof ServerPlayerEntity spe) {
             clone.changeGameMode(spe.interactionManager.getGameMode());
-            NbtCompound nbt = ((IPlayerData) spe).getPersistantData();
-            nbt.putInt("charges", 0);
-            ModPackets.sendDashUpdatePacket((ServerPlayerEntity)spe, DashData.getCharges((IPlayerData)spe));
         }
         clone.setFireTicks(original.getFireTicks());
         clone.timeUntilRegen = 0;
@@ -339,25 +334,25 @@ public class Holo implements ModInitializer {
         clone.teleport((ServerWorld) original.getWorld(), original.getPos().x, original.getPos().y, original.getPos().z, original.getYaw(), original.getPitch());
     }
 
-    public static ImmutableMultimap<EntityAttribute,EntityAttributeModifier> getHoloAttributes(PlayerEntity player) {
-        ImmutableMultimap.Builder<EntityAttribute, EntityAttributeModifier> builder = ImmutableMultimap.builder();
-        if (!StateSaverAndLoader.getPlayerState(player).loreAccurate) {
-            if (!StateSaverAndLoader.getPlayerState(player).hologramType.equals(HologramType.BATTLE)) {
-                builder.put(EntityAttributes.GENERIC_ATTACK_DAMAGE, new EntityAttributeModifier(HUMAN_DAMAGE_MODIFIER_ID, "Holo modifier", (double) -100, EntityAttributeModifier.Operation.ADDITION));
+    public static ImmutableMultimap<RegistryEntry<EntityAttribute>,EntityAttributeModifier> getHoloAttributes(PlayerEntity player) {
+        ImmutableMultimap.Builder<RegistryEntry<EntityAttribute>, EntityAttributeModifier> builder = ImmutableMultimap.builder();
+        if (!HoloNbtManager.getPlayerState(player).loreAccurate) {
+            if (!HoloNbtManager.getPlayerState(player).hologramType.equals(HologramType.BATTLE)) {
+                builder.put(EntityAttributes.GENERIC_ATTACK_DAMAGE, new EntityAttributeModifier(HUMAN_DAMAGE_MODIFIER_ID,  (double) -100, EntityAttributeModifier.Operation.ADD_VALUE));
             } else {
-                builder.put(EntityAttributes.GENERIC_ATTACK_DAMAGE, new EntityAttributeModifier(HUMAN_DAMAGE_MODIFIER_ID, "Holo modifier", (double) -4.5, EntityAttributeModifier.Operation.ADDITION));
+                builder.put(EntityAttributes.GENERIC_ATTACK_DAMAGE, new EntityAttributeModifier(HUMAN_DAMAGE_MODIFIER_ID,  (double) -4.5, EntityAttributeModifier.Operation.ADD_VALUE));
             }
-            builder.put(EntityAttributes.GENERIC_ATTACK_SPEED, new EntityAttributeModifier(HUMAN_DAMAGE_SPEED_MODIFIER_ID, "Holo modifier", (double) -0.9, EntityAttributeModifier.Operation.ADDITION));
-            builder.put(EntityAttributes.GENERIC_MOVEMENT_SPEED, new EntityAttributeModifier(HUMAN_SPEED_MODIFIER_ID, "Holo modifier", (double) -0.075, EntityAttributeModifier.Operation.ADDITION));
+            builder.put(EntityAttributes.GENERIC_ATTACK_SPEED, new EntityAttributeModifier(HUMAN_DAMAGE_SPEED_MODIFIER_ID, (double) -0.9, EntityAttributeModifier.Operation.ADD_VALUE));
+            builder.put(EntityAttributes.GENERIC_MOVEMENT_SPEED, new EntityAttributeModifier(HUMAN_SPEED_MODIFIER_ID,  (double) -0.075, EntityAttributeModifier.Operation.ADD_VALUE));
         }
         return builder.build();
     }
-    public static ImmutableMultimap<EntityAttribute,EntityAttributeModifier> getHumanAttributes(PlayerEntity player) {
-        ImmutableMultimap.Builder<EntityAttribute, EntityAttributeModifier> builder = ImmutableMultimap.builder();
-        if (StateSaverAndLoader.getPlayerState(player).loreAccurate) {
-            builder.put(EntityAttributes.GENERIC_ATTACK_DAMAGE, new EntityAttributeModifier(HUMAN_DAMAGE_MODIFIER_ID, "Human modifier", (double) -3.5, EntityAttributeModifier.Operation.ADDITION));
-            builder.put(EntityAttributes.GENERIC_ATTACK_SPEED, new EntityAttributeModifier(HUMAN_DAMAGE_SPEED_MODIFIER_ID, "Human modifier", (double) -0.8, EntityAttributeModifier.Operation.ADDITION));
-            builder.put(EntityAttributes.GENERIC_MOVEMENT_SPEED, new EntityAttributeModifier(HUMAN_SPEED_MODIFIER_ID, "Human modifier", (double) -0.045, EntityAttributeModifier.Operation.ADDITION));
+    public static ImmutableMultimap<RegistryEntry<EntityAttribute>,EntityAttributeModifier> getHumanAttributes(PlayerEntity player) {
+        ImmutableMultimap.Builder<RegistryEntry<EntityAttribute>, EntityAttributeModifier> builder = ImmutableMultimap.builder();
+        if (HoloNbtManager.getPlayerState(player).loreAccurate) {
+            builder.put(EntityAttributes.GENERIC_ATTACK_DAMAGE, new EntityAttributeModifier(HUMAN_DAMAGE_MODIFIER_ID, (double) -3.5, EntityAttributeModifier.Operation.ADD_VALUE));
+            builder.put(EntityAttributes.GENERIC_ATTACK_SPEED, new EntityAttributeModifier(HUMAN_DAMAGE_SPEED_MODIFIER_ID,  -0.8, EntityAttributeModifier.Operation.ADD_VALUE));
+            builder.put(EntityAttributes.GENERIC_MOVEMENT_SPEED, new EntityAttributeModifier(HUMAN_SPEED_MODIFIER_ID,  (double) -0.045, EntityAttributeModifier.Operation.ADD_VALUE));
         }
         return builder.build();
     }
@@ -368,7 +363,7 @@ public class Holo implements ModInitializer {
     public static boolean canSwapBody(PlayerEntity player, boolean holo) {
 
         FakestPlayer bodyToTake = null;
-        for (FakestPlayer clone : StateSaverAndLoader.getPlayerState(player).clones) {
+        for (FakestPlayer clone : HoloNbtManager.getPlayerState(player).clones) {
             if (clone.isHologram == holo)  {
                 return true;
             }
@@ -383,10 +378,10 @@ public class Holo implements ModInitializer {
             summonBody(player);
 
         if (bodyToTake != null) {
-            StateSaverAndLoader.getPlayerState(player).clones.remove(bodyToTake);
-            StateSaverAndLoader.getPlayerState(player).inHoloMode = bodyToTake.isHologram;
-            StateSaverAndLoader.getPlayerState(player).holoName = bodyToTake.holoName;
-            StateSaverAndLoader.getPlayerState(player).hologramType = bodyToTake.type;
+            HoloNbtManager.getPlayerState(player).clones.remove(bodyToTake);
+            HoloNbtManager.getPlayerState(player).inHoloMode = bodyToTake.isHologram;
+            HoloNbtManager.getPlayerState(player).holoName = bodyToTake.holoName;
+            HoloNbtManager.getPlayerState(player).hologramType = bodyToTake.type;
 
             tinyPlayerClone(bodyToTake, (ServerPlayerEntity) player);
             player.requestTeleport(bodyToTake.getPos().x, bodyToTake.getPos().y, bodyToTake.getPos().z);
@@ -401,31 +396,31 @@ public class Holo implements ModInitializer {
             summonBody(player);
 
         FakestPlayer bodyToTake = null;
-        for (FakestPlayer clone : StateSaverAndLoader.getPlayerState(player).clones) {
+        for (FakestPlayer clone : HoloNbtManager.getPlayerState(player).clones) {
             if (clone.isHologram == holo)  { bodyToTake = clone; break; }
         }
         if (bodyToTake != null) {
-            StateSaverAndLoader.getPlayerState(player).inHoloMode = holo;
-            StateSaverAndLoader.getPlayerState(player).holoName = bodyToTake.holoName;
+            HoloNbtManager.getPlayerState(player).inHoloMode = holo;
+            HoloNbtManager.getPlayerState(player).holoName = bodyToTake.holoName;
             if (holo) {
-                StateSaverAndLoader.getPlayerState(player).hologramType = bodyToTake.type;
+                HoloNbtManager.getPlayerState(player).hologramType = bodyToTake.type;
             }
             tinyPlayerClone(bodyToTake, (ServerPlayerEntity) player);
             player.requestTeleport(bodyToTake.getPos().x, bodyToTake.getPos().y, bodyToTake.getPos().z);
-            StateSaverAndLoader.getPlayerState(player).clones.remove(bodyToTake);
+            HoloNbtManager.getPlayerState(player).clones.remove(bodyToTake);
             player.getWorld().getServer().getPlayerManager().sendToAll(new PlayerRemoveS2CPacket(List.of(bodyToTake.getUuid())));
             bodyToTake.remove(Entity.RemovalReason.DISCARDED);
         }
     }
 
     private static void summonBody(PlayerEntity player) {
-        summonBody(player, StateSaverAndLoader.getPlayerState(player).inHoloMode);
+        summonBody(player, HoloNbtManager.getPlayerState(player).inHoloMode);
     }
 
     public static FakestPlayer summonNewBody(PlayerEntity player, boolean holoMode, HologramType type, String holoName) {
         GameProfile profile = new GameProfile(Holo.getFreeUUID(), "");
         profile.getProperties().putAll(player.getGameProfile().getProperties());
-        FakestPlayer fakePlayer = FakestPlayer.get((ServerWorld) player.getWorld(), profile, player.getEntityName(), player.getUuid());
+        FakestPlayer fakePlayer = FakestPlayer.get((ServerWorld) player.getWorld(), profile, player.getNameForScoreboard(), player.getUuid());
         player.getWorld().getServer().getPlayerManager().sendToAll(PlayerListS2CPacket.entryFromPlayer(List.of(fakePlayer)));
 
         fakePlayer.setServerWorld((ServerWorld) player.getWorld());
@@ -442,14 +437,14 @@ public class Holo implements ModInitializer {
             HoloModeUpdates.sendHoloModeUpdate(fakePlayer);
         }
         fakePlayer.worldName = player.getWorld().getRegistryKey();
-        StateSaverAndLoader.getPlayerState(player).clones.add(fakePlayer);
-        StateSaverAndLoader.getPlayerState(player).playerName = player.getEntityName();
+        HoloNbtManager.getPlayerState(player).clones.add(fakePlayer);
+        HoloNbtManager.getPlayerState(player).playerName = player.getNameForScoreboard();
         player.getWorld().getServer().forcePlayerSampleUpdate();
         return fakePlayer;
     }
 
     public static void summonBody(PlayerEntity player, boolean holoMode) {
-        FakestPlayer fakePlayer = summonNewBody(player,holoMode,StateSaverAndLoader.getPlayerState(player).hologramType, StateSaverAndLoader.getPlayerState(player).holoName);
+        FakestPlayer fakePlayer = summonNewBody(player,holoMode, HoloNbtManager.getPlayerState(player).hologramType, HoloNbtManager.getPlayerState(player).holoName);
         Holo.tinyPlayerClone(player, fakePlayer);
     }
 
@@ -460,11 +455,11 @@ public class Holo implements ModInitializer {
 
 
     public static void updateAttributesAndUpdateMode(PlayerEntity player) {
-        if (StateSaverAndLoader.getPlayerState(player).inHoloMode) {
-            if (!StateSaverAndLoader.getPlayerState(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
+        if (HoloNbtManager.getPlayerState(player).inHoloMode) {
+            if (!HoloNbtManager.getPlayerState(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
                 getHoloAttributes(player).forEach((attributeEntry, modifier) -> {
                     if (player.getAttributeInstance(attributeEntry) != null) {
-                        if (!player.getAttributeInstance(attributeEntry).hasModifier(modifier)) {
+                        if (!player.getAttributeInstance(attributeEntry).hasModifier(modifier.id())) {
                             player.getAttributeInstance(attributeEntry).addPersistentModifier(modifier);
                         }
                     }
@@ -473,10 +468,10 @@ public class Holo implements ModInitializer {
             player.getAttributes().removeModifiers(getHumanAttributes(player));
             HoloModeUpdates.sendHoloModeUpdate(player);
         } else {
-            StateSaverAndLoader.getPlayerState(player).hologramType = HologramType.NORMAL;
+            HoloNbtManager.getPlayerState(player).hologramType = HologramType.NORMAL;
             getHumanAttributes(player).forEach((attributeEntry, modifier) -> {
                     if (player.getAttributeInstance(attributeEntry) != null) {
-                        if (!player.getAttributeInstance(attributeEntry).hasModifier(modifier)) {
+                        if (!player.getAttributeInstance(attributeEntry).hasModifier(modifier.id())) {
                             player.getAttributeInstance(attributeEntry).addPersistentModifier(modifier);
                         }
                     }
