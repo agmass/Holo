@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.network.PacketByteBuf;
 import org.agmas.holo.Holo;
+import org.agmas.holo.util.payloads.TerminalCommandC2SPacket;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -29,14 +30,11 @@ public class TerminalChatScreen extends ChatScreen {
     }
 
     @Override
-    public boolean sendMessage(String chatText, boolean addToHistory) {
-        PacketByteBuf data = PacketByteBufs.create();
-        data.writeString(chatText);
+    public void sendMessage(String chatText, boolean addToHistory) {
         if (client != null) {
             client.execute(() -> {
-                ClientPlayNetworking.send(Holo.TERMINAL_COMMAND, data);
+                ClientPlayNetworking.send(new TerminalCommandC2SPacket(chatText));
             });
         }
-        return true;
     }
 }

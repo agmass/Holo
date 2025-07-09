@@ -13,7 +13,7 @@ public class ModEntities {
 
 
     private static <T extends Entity> EntityType<T> register(String id, EntityType.Builder<T> type) {
-        return Registry.register(Registries.ENTITY_TYPE, new Identifier(Holo.MOD_ID, id), type.build(id));
+        return Registry.register(Registries.ENTITY_TYPE, Identifier.of(Holo.MOD_ID, id), type.build(id));
     }
 
     public static void init() {}

@@ -4,7 +4,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.agmas.holo.Holo;
-import org.agmas.holo.state.StateSaverAndLoader;
+import org.agmas.holo.state.HoloNbtManager;
 import org.agmas.holo.util.FakestPlayer;
 
 import java.util.ArrayList;
@@ -13,7 +13,7 @@ public class SwapCommand extends TerminalCommand{
     @Override
     public ArrayList<String> autoCompletion(ServerPlayerEntity player) {
         ArrayList<String> str = new ArrayList<>();
-        StateSaverAndLoader.getPlayerState(player).clones.forEach((p)->{
+        HoloNbtManager.getPlayerState(player).clones.forEach((p)->{
             str.add("swap " + p.holoName);
         });
         return str;
@@ -25,7 +25,7 @@ public class SwapCommand extends TerminalCommand{
             return Text.literal("Insufficient arguments supplied").formatted(Formatting.RED);
         }
         String referencedHolo = cmd.split(" ")[1];
-        for (FakestPlayer c : StateSaverAndLoader.getPlayerState(player).clones) {
+        for (FakestPlayer c : HoloNbtManager.getPlayerState(player).clones) {
             if (c.holoName.equals(referencedHolo)) {
                 Holo.swapBody(player,c,true);
                 Holo.updateAttributesAndUpdateMode(player);

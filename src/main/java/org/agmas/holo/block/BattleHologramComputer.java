@@ -1,18 +1,12 @@
 package org.agmas.holo.block;
 
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.loot.context.LootContextParameterSet;
-import net.minecraft.network.PacketByteBuf;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.BooleanProperty;
-import net.minecraft.state.property.DirectionProperty;
 import net.minecraft.state.property.IntProperty;
 import net.minecraft.state.property.Property;
 import net.minecraft.text.Text;
@@ -24,9 +18,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.agmas.holo.Holo;
 import org.agmas.holo.ModItems;
-import org.agmas.holo.state.StateSaverAndLoader;
 import org.agmas.holo.util.BattleHologramComputerEntry;
-import org.agmas.holo.util.FakestPlayer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,7 +45,7 @@ public class BattleHologramComputer extends HologramController{
     }
 
     @Override
-    public ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit) {
+    protected ActionResult onUse(BlockState state, World world, BlockPos pos, PlayerEntity player, BlockHitResult hit) {
         if (!world.isClient) {
             for (ArrayList<PlayerEntity> playerEntities : Holo.fights) {
                 if (playerEntities.contains(player))
@@ -121,5 +113,6 @@ public class BattleHologramComputer extends HologramController{
         }
 
         return ActionResult.SUCCESS;
+
     }
 }

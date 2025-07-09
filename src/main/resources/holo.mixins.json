@@ -10,8 +10,7 @@
     "NoFakeDeathMessageMixin",
     "NoItemPickupMixin",
     "PlayerListPacketMixin",
-    "SilentHologramListenerMixin",
-    "compat.InfernumEffugiumMixin"
+    "SilentHologramListenerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

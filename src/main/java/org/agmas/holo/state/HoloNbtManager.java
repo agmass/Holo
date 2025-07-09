@@ -2,12 +2,16 @@ package org.agmas.holo.state;
 
 import com.mojang.authlib.GameProfile;
 import com.mojang.serialization.Dynamic;
+import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry;
+import net.fabricmc.fabric.api.attachment.v1.AttachmentType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.PersistentState;
 import net.minecraft.world.PersistentStateManager;
@@ -21,18 +25,19 @@ import java.util.HashMap;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class StateSaverAndLoader extends PersistentState {
+public class HoloNbtManager {
 
     public HashMap<UUID, PlayerData> players = new HashMap<>();
 
+    public static final AttachmentType<NbtCompound> holoData = AttachmentRegistry.createPersistent(Identifier.of(Holo.MOD_ID, "holodata"), NbtCompound.CODEC);
 
     public static PlayerData getPlayerState(LivingEntity player) {
-        StateSaverAndLoader serverState = getServerState(player.getWorld().getServer());
+        HoloNbtManager serverState = getServerState(player.getWorld().getServer());
         return serverState.players.computeIfAbsent(player.getUuid(), uuid -> new PlayerData());
     }
 
-    public static StateSaverAndLoader createFromNbt(NbtCompound tag) {
-        StateSaverAndLoader state = new StateSaverAndLoader();
+    public static HoloNbtManager createFromNbt(NbtCompound tag) {
+        HoloNbtManager state = new HoloNbtManager();
 
         NbtCompound playersNbt = tag.getCompound("players");
         playersNbt.getKeys().forEach(key -> {
@@ -78,19 +83,16 @@ public class StateSaverAndLoader extends PersistentState {
         });
         return state;
     }
-    public static StateSaverAndLoader getServerState(MinecraftServer server) {
-        PersistentStateManager persistentStateManager = server.getWorld(World.OVERWORLD).getPersistentStateManager();
-        StateSaverAndLoader state = persistentStateManager.getOrCreate(StateSaverAndLoader::createFromNbt, StateSaverAndLoader::new, Holo.MOD_ID);
-        state.markDirty();
-
-        return state;
+    public static HoloNbtManager INSTANCE;
+    public static HoloNbtManager getServerState(MinecraftServer server) {
+        return INSTANCE;
     }
 
 
 
-    @Override
+
     public NbtCompound writeNbt(NbtCompound nbt) {
-        NbtCompound playersNbt = new NbtCompound();
+        NbtCompound holoNbt = new NbtCompound();
         players.forEach((uuid, playerData) -> {
             NbtCompound playerNbt = new NbtCompound();
             NbtCompound cloneNbt = new NbtCompound();
@@ -108,9 +110,9 @@ public class StateSaverAndLoader extends PersistentState {
             }));
 
             playerNbt.put("clones", cloneNbt);
-            playersNbt.put(uuid.toString(), playerNbt);
+            holoNbt.put(uuid.toString(), playerNbt);
         });
-        nbt.put("players", playersNbt);
+        nbt.put("players", holoNbt);
 
         return nbt;
     }
