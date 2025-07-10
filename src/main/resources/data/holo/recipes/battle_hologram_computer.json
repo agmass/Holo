@@ -12,7 +12,7 @@
     }
   ],
   "result": {
-    "item": "holo:battle_hologram_controller",
+    "id": "holo:battle_hologram_controller",
     "count": 1
   }
 }
