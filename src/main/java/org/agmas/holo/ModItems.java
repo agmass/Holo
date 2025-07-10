@@ -18,25 +18,10 @@ public class ModItems {
             new HologramSpawnEgg(new Item.Settings().fireproof(), HologramType.BATTLE),
             "battle_hologram_spawn_egg"
     );
-
-
-    public static final Item SCOUT_HOLOGRAM_SPAWN_EGG = register(
-            new HologramSpawnEgg(new Item.Settings().fireproof(), HologramType.SCOUT),
-            "scout_hologram_spawn_egg"
-    );
-
-
     public static final Item SILENT_HOLOGRAM_SPAWN_EGG = register(
             new HologramSpawnEgg(new Item.Settings().fireproof(), HologramType.SILENT),
             "silent_hologram_spawn_egg"
     );
-
-
-    public static final Item ENDER_HOLOGRAM_SPAWN_EGG = register(
-            new HologramSpawnEgg(new Item.Settings().fireproof(), HologramType.ENDER),
-            "ender_hologram_spawn_egg"
-    );
-
 
 
     public static Item register(Item item, String id) {
