@@ -1,10 +1,8 @@
 package org.agmas.holo.mixin;
 
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.item.ItemStack;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.world.GameRules;
-import org.agmas.holo.state.StateSaverAndLoader;
+import org.agmas.holo.state.HoloNbtManager;
 import org.agmas.holo.util.FakestPlayer;
 import org.agmas.holo.util.HologramType;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,7 +22,7 @@ public class NoFakeDeathMessageMixin {
     }
     @Inject(method = "dropSelectedItem", at = @At("HEAD"), cancellable = true)
     void aa(boolean entireStack, CallbackInfoReturnable<Boolean> cir) {
-        if (StateSaverAndLoader.getPlayerState((ServerPlayerEntity)(Object)this).hologramType.equals(HologramType.BATTLE_DUEL)) {
+        if (HoloNbtManager.getPlayerState((ServerPlayerEntity)(Object)this).hologramType.equals(HologramType.BATTLE_DUEL)) {
             cir.setReturnValue(false);
             cir.cancel();
         }

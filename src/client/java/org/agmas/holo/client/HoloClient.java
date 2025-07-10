@@ -1,46 +1,34 @@
 package org.agmas.holo.client;
 
-import ladysnake.satin.api.event.ShaderEffectRenderCallback;
-import ladysnake.satin.api.managed.ManagedShaderEffect;
-import ladysnake.satin.api.managed.ShaderEffectManager;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityModelLayerRegistry;
-import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.fabricmc.loader.impl.util.log.Log;
-import net.fabricmc.loader.impl.util.log.LogCategory;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.ingame.HandledScreens;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.render.GameRenderer;
-import net.minecraft.client.render.entity.FlyingItemEntityRenderer;
-import net.minecraft.client.render.entity.PlayerEntityRenderer;
 import net.minecraft.client.render.entity.feature.FeatureRendererContext;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.EntityType;
-import net.minecraft.network.NetworkThreadUtils;
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import org.agmas.holo.Holo;
-import org.agmas.holo.ModEntities;
 import org.agmas.holo.client.models.WardenHornsFeatureRenderer;
 import org.agmas.holo.client.models.WardensHorns;
-import org.agmas.holo.client.screen.DuelComputerScreen;
 import org.agmas.holo.client.screen.TerminalChatScreen;
-import org.agmas.holo.state.StateSaverAndLoader;
 import org.agmas.holo.util.HologramType;
+import org.agmas.holo.util.payloads.*;
+import org.ladysnake.satin.api.event.ShaderEffectRenderCallback;
+import org.ladysnake.satin.api.managed.ManagedShaderEffect;
+import org.ladysnake.satin.api.managed.ShaderEffectManager;
 import org.lwjgl.glfw.GLFW;
 
-import java.util.ArrayList;
+import java.awt.*;
 import java.util.HashMap;
 import java.util.UUID;
 
@@ -51,11 +39,13 @@ public class HoloClient implements ClientModInitializer {
     private static KeyBinding keyBinding;
     private static KeyBinding terminalBind;
     public static HologramType hologramType = null;
+    public static int HOLO_COLOR = new Color(191,191,255,128).getRGB();
     private static final ManagedShaderEffect GREYSCALE_SHADER = ShaderEffectManager.getInstance()
             .manage(Identifier.of("holo", "shaders/silent.json"));
 
     @Override
     public void onInitializeClient() {
+
         EntityModelLayerRegistry.registerModelLayer(WardensHorns.MODEL_LAYER, WardensHorns::getTexturedModelData);
         LivingEntityFeatureRendererRegistrationCallback.EVENT.register(((entityType, entityRenderer, registrationHelper, context) -> {
             if (entityType.equals(EntityType.PLAYER)) {
@@ -75,35 +65,10 @@ public class HoloClient implements ClientModInitializer {
                 "category.holo.hologramcontrols" // The translation key of the keybinding's category.
         ));
 
-        ClientPlayConnectionEvents.INIT.register(((clientPlayNetworkHandler, minecraftClient) -> {
-                    ClientPlayNetworking.registerReceiver(Holo.OPEN_BATTLE_COMPUTER_SCREEN, (client, handler, buf, responseSender) -> {
-                        MinecraftClient.getInstance().execute(() -> {
-                            minecraftClient.setScreen(new DuelComputerScreen());
-                        });
-                    });
-                }));
-        ClientPlayNetworking.registerGlobalReceiver(Holo.HUMAN_MODE, (client, handler, buf, responseSender) -> {
-            UUID uuid = buf.readUuid();
-            hologramType = null;
-            playersInHolo.remove(uuid);
-        });
-        ClientPlayNetworking.registerGlobalReceiver(Holo.SEND_TERMINAL_AUTOCOMPLETE, (client, handler, buf, responseSender) -> {
-            boolean complete = false;
+        ClientPlayNetworking.registerGlobalReceiver(Holo.SEND_TERMINAL_AUTOCOMPLETE, (packet,context) -> {
             TerminalChatScreen.possibleSuggestions.clear();
-            while (!complete) {
-                try {
-                    String s = buf.readString();
-                    if (s == null) {
-                        complete = true;
-                        break;
-                    }
-                    TerminalChatScreen.possibleSuggestions.add(s);
-                    TerminalChatScreen.refresh = true;
-
-                } catch (Exception e) {
-                    complete = true;
-                }
-            }
+            TerminalChatScreen.possibleSuggestions.addAll(packet.commands());
+            TerminalChatScreen.refresh = true;
         });
         ShaderEffectRenderCallback.EVENT.register(tickDelta -> {
             if ((hologramType != null && hologramType.equals(HologramType.SILENT)) || MinecraftClient.getInstance().currentScreen instanceof TerminalChatScreen) {
@@ -111,20 +76,25 @@ public class HoloClient implements ClientModInitializer {
             }
         });
 
-        ClientPlayNetworking.registerGlobalReceiver(Holo.TEMPORARILY_SHOW_ENTITY, (client, handler, buf, responseSender) -> {
-            UUID uuid = buf.readUuid();
-            shownEntities.put(uuid, 20*7);
+        ClientPlayNetworking.registerGlobalReceiver(Holo.TEMPORARILY_SHOW_ENTITY, (packet,context) -> {
+            shownEntities.put(packet.entity(), 20 * 7);
         });
-        ClientPlayNetworking.registerGlobalReceiver(Holo.HOLO_MODE, (client, handler, buf, responseSender) -> {
-            UUID uuid = buf.readUuid();
-            HologramType type = buf.readEnumConstant(HologramType.class);
-            if (!playersInHolo.containsKey(uuid))
-                playersInHolo.put(uuid, type);
-            if (client.player != null) {
-                if (uuid.equals(client.player.getUuid()))
-                    hologramType = type;
+        ClientPlayNetworking.registerGlobalReceiver(Holo.HOLO_MODE, (packet,context) -> {
+            UUID uuid = packet.player();
+            HologramType type = packet.hologramType();
+            if (type != HologramType.HUMAN) {
+                if (!playersInHolo.containsKey(uuid))
+                    playersInHolo.put(uuid, type);
+                if (context.player() != null) {
+                    if (uuid.equals(context.player().getUuid()))
+                        hologramType = type;
+                }
+            } else {
+                hologramType = null;
+                playersInHolo.remove(uuid);
             }
         });
+
         ClientPlayConnectionEvents.DISCONNECT.register(((clientPlayNetworkHandler, minecraftClient) -> {
             playersInHolo.clear();
             shownEntities.clear();
@@ -142,14 +112,14 @@ public class HoloClient implements ClientModInitializer {
                 while (terminalBind.wasPressed()) {
                     PacketByteBuf data = PacketByteBufs.create();
                     client.execute(() -> {
-                        ClientPlayNetworking.send(Holo.REQUEST_TERMINAL_AUTOCOMPLETE, data);
+                        ClientPlayNetworking.send(new RequestTerminalAutocompleteC2SPacket());
                     });
                     client.setScreen(new TerminalChatScreen(""));
                 }
                 while (keyBinding.wasPressed()) {
                     PacketByteBuf data = PacketByteBufs.create();
                     client.execute(() -> {
-                        ClientPlayNetworking.send(Holo.SWAP_PACKET, data);
+                        ClientPlayNetworking.send(new SwapC2SPacket());
                     });
                 }
             }

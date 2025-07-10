@@ -2,17 +2,16 @@ package org.agmas.holo.util;
 
 import com.google.common.collect.MapMaker;
 import com.mojang.authlib.GameProfile;
-import net.fabricmc.fabric.api.entity.FakePlayer;
 import net.fabricmc.fabric.impl.event.interaction.FakePlayerNetworkHandler;
-import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.nbt.NbtCompound;
+import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
-import org.agmas.holo.state.StateSaverAndLoader;
+import org.agmas.holo.Holo;
+import org.agmas.holo.state.HoloNbtManager;
 
 import java.util.Map;
 import java.util.Objects;
@@ -53,8 +52,10 @@ public class FakestPlayer extends ServerPlayerEntity {
         if (!isHologram) {
             ServerPlayerEntity p = getServer().getPlayerManager().getPlayer(ownerUUID);
             if (p != null) {
-                if (StateSaverAndLoader.getPlayerState(p).clones.contains(this)) {
+                if (HoloNbtManager.getPlayerState(p).clones.contains(this)) {
+                    Holo.swapBody(p,this,true);
                     p.kill();
+
                 }
             }
         }
@@ -62,7 +63,7 @@ public class FakestPlayer extends ServerPlayerEntity {
     }
 
     protected FakestPlayer(ServerWorld world, GameProfile profile, String ownerName, UUID ownerUUID) {
-        super(world.getServer(), world, profile);
+        super(world.getServer(), world, profile, SyncedClientOptions.createDefault());
         this.networkHandler = new FakePlayerNetworkHandler(this);
         this.ownerName = ownerName;
         this.ownerUUID = ownerUUID;

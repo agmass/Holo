@@ -15,7 +15,7 @@ import org.agmas.holo.Holo;
 public class WardensHorns extends EntityModel<PlayerEntity> {
 	private final ModelPart bone;
 
-	public static final EntityModelLayer MODEL_LAYER = new EntityModelLayer(new Identifier(Holo.MOD_ID,"wardenhorns"), "main");
+	public static final EntityModelLayer MODEL_LAYER = new EntityModelLayer(Identifier.of(Holo.MOD_ID,"wardenhorns"), "main");
 	public WardensHorns(ModelPart root) {
 		this.bone = root.getChild("bone");
 	}
@@ -46,13 +46,14 @@ public class WardensHorns extends EntityModel<PlayerEntity> {
 	}
 
 
-	@Override
-	public void render(MatrixStack matrices, VertexConsumer vertices, int light, int overlay, float red, float green, float blue, float alpha) {
-		bone.render(matrices, vertices, light, overlay, red, green, blue, alpha);
-	}
 
 	@Override
 	public void setAngles(PlayerEntity entity, float limbAngle, float limbDistance, float animationProgress, float headYaw, float headPitch) {
 
+	}
+
+	@Override
+	public void render(MatrixStack matrices, VertexConsumer vertices, int light, int overlay, int color) {
+		bone.render(matrices, vertices, light, overlay,color);
 	}
 }

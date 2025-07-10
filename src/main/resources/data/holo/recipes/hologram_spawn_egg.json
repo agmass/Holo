@@ -37,6 +37,6 @@
     }
   },
   "result": {
-    "item": "holo:hologram_spawn_egg"
+    "id": "holo:hologram_spawn_egg"
   }
 }
