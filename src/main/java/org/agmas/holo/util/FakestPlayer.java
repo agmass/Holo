@@ -10,6 +10,7 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.World;
+import org.agmas.holo.Holo;
 import org.agmas.holo.state.HoloNbtManager;
 
 import java.util.Map;
@@ -52,7 +53,9 @@ public class FakestPlayer extends ServerPlayerEntity {
             ServerPlayerEntity p = getServer().getPlayerManager().getPlayer(ownerUUID);
             if (p != null) {
                 if (HoloNbtManager.getPlayerState(p).clones.contains(this)) {
+                    Holo.swapBody(p,this,true);
                     p.kill();
+
                 }
             }
         }

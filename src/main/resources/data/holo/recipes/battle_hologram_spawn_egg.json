@@ -20,7 +20,7 @@
     }
   },
   "result": {
-    "item": "holo:battle_hologram_spawn_egg",
+    "id": "holo:battle_hologram_spawn_egg",
     "count": 1
   }
 }

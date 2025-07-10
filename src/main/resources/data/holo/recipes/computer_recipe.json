@@ -14,6 +14,6 @@
     }
   },
   "result": {
-    "item": "holo:hologram_controller"
+    "id": "holo:hologram_controller"
   }
 }
