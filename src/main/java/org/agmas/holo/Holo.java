@@ -324,9 +324,6 @@ public class Holo implements ModInitializer {
         clone.setScore(original.getScore());
         if (original instanceof ServerPlayerEntity spe) {
             clone.changeGameMode(spe.interactionManager.getGameMode());
-            NbtCompound nbt = ((IPlayerData) spe).getPersistantData();
-            nbt.putInt("charges", 0);
-            ModPackets.sendDashUpdatePacket((ServerPlayerEntity)spe, DashData.getCharges((IPlayerData)spe));
         }
         clone.setFireTicks(original.getFireTicks());
         clone.timeUntilRegen = 0;

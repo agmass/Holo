@@ -19,25 +19,11 @@ public class ModItems {
             new HologramSpawnEgg(new FabricItemSettings().fireproof(), HologramType.BATTLE),
             "battle_hologram_spawn_egg"
     );
-
-
-    public static final Item SCOUT_HOLOGRAM_SPAWN_EGG = register(
-            new HologramSpawnEgg(new FabricItemSettings().fireproof(), HologramType.SCOUT),
-            "scout_hologram_spawn_egg"
-    );
-
-
     public static final Item SILENT_HOLOGRAM_SPAWN_EGG = register(
             new HologramSpawnEgg(new FabricItemSettings().fireproof(), HologramType.SILENT),
             "silent_hologram_spawn_egg"
     );
-
-
-    public static final Item ENDER_HOLOGRAM_SPAWN_EGG = register(
-            new HologramSpawnEgg(new FabricItemSettings().fireproof(), HologramType.ENDER),
-            "ender_hologram_spawn_egg"
-    );
-
+    
 
 
     public static Item register(Item item, String id) {
