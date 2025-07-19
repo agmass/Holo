@@ -14,6 +14,9 @@ public class TerminalCommandParser {
         nameAndCommands.put("rename", new RenameCommand());
         nameAndCommands.put("exit", new ExitCommand());
         nameAndCommands.put("detonate", new DetonateCommand());
+        nameAndCommands.put("power", new PowerInfoCommand());
+        nameAndCommands.put("enable", new EnableCommand());
+        nameAndCommands.put("disable", new DisableCommand());
     }
     public static Text findAndRunCommand(String userInput, ServerPlayerEntity player) {
         String root = userInput.split(" ")[0];

@@ -39,7 +39,7 @@ public abstract class HoloSkinMixin {
 
         if (HoloClient.hologramType != null) {
             if (HoloClient.hologramType.equals(HologramType.SILENT) && !(livingEntity instanceof ClientPlayerEntity) && HoloClient.shownEntities.containsKey(livingEntity.getUuid())) {
-                return new Color(255,255,255,HoloClient.shownEntities.get(livingEntity.getUuid()) / 140f).getRGB();
+                return new Color(255,255,255,Math.max(Math.min(HoloClient.shownEntities.get(livingEntity.getUuid()) / 140f, 255f),0)).getRGB();
             }
         }
         if (HoloClient.playersInHolo.containsKey(livingEntity.getUuid())) {

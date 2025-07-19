@@ -6,6 +6,7 @@
   "client": [
     "AlwaysOutlineSilentMixin",
     "EntityRenderDispatcherMixin",
+    "FovFixerMixin",
     "HoloSkinMixin",
     "HoloSkinPlayerMixin",
     "HoloUIMixin",

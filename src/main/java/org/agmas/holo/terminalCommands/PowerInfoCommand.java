@@ -8,22 +8,17 @@ import org.agmas.holo.state.HoloNbtManager;
 
 import java.util.ArrayList;
 
-public class ExitCommand extends TerminalCommand{
+public class PowerInfoCommand extends TerminalCommand{
     @Override
     public ArrayList<String> autoCompletion(ServerPlayerEntity player) {
         ArrayList<String> str = new ArrayList<>();
         if (HoloNbtManager.getPlayerState(player).inHoloMode)
-            str.add("exit");
+            str.add("power");
         return str;
     }
 
     @Override
     public Text run(String cmd, ServerPlayerEntity player) {
-        if (Holo.canSwapBody(player,false)) {
-            Holo.swapBody(player,false,true);
-            Holo.updateAttributesAndUpdateMode(player);
-            return Text.literal("Goodbye!").formatted(Formatting.GREEN);
-        }
-        return Text.literal("No appropriate Human Form found.").formatted(Formatting.RED);
+        return Text.literal("Computers can have their power upgraded with ").formatted(Formatting.WHITE).append(Text.literal("Netherite Ingots.\n").formatted(Formatting.YELLOW).append(Text.literal("If you overcharge on power, you will recieve de-buffs and start lagging.").formatted(Formatting.RED).append("\nBeing at low health or being in water can use up extra power. Be careful!").formatted(Formatting.DARK_RED)));
     }
 }

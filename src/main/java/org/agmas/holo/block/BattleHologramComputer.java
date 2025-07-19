@@ -32,7 +32,7 @@ public class BattleHologramComputer extends HologramController{
     }
 
     protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-        builder.add(new Property[]{HologramController.FACING,INFINITE,HOLOGRAM_COUNT});
+        builder.add(new Property[]{HologramController.FACING,POWER_UPGRADES,INFINITE,HOLOGRAM_COUNT});
     }
 
     @Override

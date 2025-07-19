@@ -54,6 +54,7 @@ public class FakestPlayer extends ServerPlayerEntity {
             if (p != null) {
                 if (HoloNbtManager.getPlayerState(p).clones.contains(this)) {
                     Holo.swapBody(p,this,true);
+                    Holo.updateAttributesAndUpdateMode(p);
                     p.kill();
 
                 }
