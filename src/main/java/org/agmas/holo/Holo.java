@@ -92,6 +92,7 @@ public class Holo implements ModInitializer {
     public void onInitialize() {
         ModEntities.init();
         ModBlocks.initialize();
+        HoloNbtManager.init();
         ModItems.initialize();
         TerminalCommandParser.initCommands();
         ResourceManagerHelper.registerBuiltinResourcePack(Identifier.of(MOD_ID,"noholooverlay"), FabricLoader.getInstance().getModContainer(MOD_ID).get(), ResourcePackActivationType.NORMAL);
@@ -163,8 +164,8 @@ public class Holo implements ModInitializer {
         });
         ServerPlayConnectionEvents.DISCONNECT.register(((serverPlayNetworkHandler, minecraftServer) -> {
             for (FakestPlayer clone : HoloNbtManager.getPlayerState(serverPlayNetworkHandler.player).clones) {
+                clone.worldName = clone.getServerWorld().getRegistryKey();
                 clone.getServer().getPlayerManager().remove(clone);
-                clone.remove(Entity.RemovalReason.DISCARDED);
             }
         }));
 
@@ -355,13 +356,15 @@ public class Holo implements ModInitializer {
 
     public static void refreshPower(PlayerEntity p) {
         HoloNbtManager.getPlayerState(p).power = HoloNbtManager.getPlayerState(p).clones.size();
+
         if (p.getHealth() < 5) {
             HoloNbtManager.getPlayerState(p).power++;
         }
-        if (p.isSubmergedInWater()) {
+        if (p.getWorld().getDimension().piglinSafe() || p.isOnFire()) {
             HoloNbtManager.getPlayerState(p).power++;
         }
-        if (p.getWorld().getDimension().piglinSafe() || p.isOnFire()) {
+        if (HoloNbtManager.getPlayerState(p).loreAccurate) HoloNbtManager.getPlayerState(p).power = 0;
+        if (p.isSubmergedInWater()) {
             HoloNbtManager.getPlayerState(p).power++;
         }
         for (HoloModifiers activeModifier : HoloNbtManager.getPlayerState(p).activeModifiers) {
@@ -502,7 +505,7 @@ public class Holo implements ModInitializer {
     }
 
     public static FakestPlayer summonNewBody(PlayerEntity player, boolean holoMode, HologramType type, String holoName) {
-        GameProfile profile = new GameProfile(Holo.getFreeUUID(), player.getNameForScoreboard());
+        GameProfile profile = new GameProfile(Holo.getFreeUUID(), "");
         profile.getProperties().putAll(player.getGameProfile().getProperties());
         FakestPlayer fakePlayer = FakestPlayer.get((ServerWorld) player.getWorld(), profile, player.getNameForScoreboard(), player.getUuid());
         player.getWorld().getServer().getPlayerManager().sendToAll(PlayerListS2CPacket.entryFromPlayer(List.of(fakePlayer)));

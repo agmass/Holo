@@ -37,6 +37,7 @@ public class HoloNbtManager {
 
     public static final AttachmentType<NbtCompound> holoData = AttachmentRegistry.createPersistent(Identifier.of(Holo.MOD_ID, "holodata"), NbtCompound.CODEC);
 
+    public static void init() {}
     public static PlayerData getPlayerState(LivingEntity player) {
         HoloNbtManager serverState = getServerState(player.getWorld().getServer());
         return serverState.players.computeIfAbsent(player.getUuid(), uuid -> new PlayerData());
@@ -61,15 +62,15 @@ public class HoloNbtManager {
             if (playersNbt.getCompound(key).contains("lastComputerMaxPower", NbtElement.INT_TYPE))
                 playerData.lastComputerMaxPower = playersNbt.getCompound(key).getInt("lastComputerMaxPower");
 
+            Log.info(LogCategory.GENERAL,playerData.cloneCompound+"");
             if (playerData.cloneCompound != null) {
                 AtomicInteger i = new AtomicInteger();
                 playerData.cloneCompound.getKeys().forEach((k -> {
                     String ids = playerData.cloneCompound.getCompound(k).getString("Dimension");
                     Identifier id = Identifier.of(ids);
-                    FakestPlayer fakePlayer = FakestPlayer.get(Holo.server.getWorld(RegistryKey.of(RegistryKeys.WORLD, id)), new GameProfile(Holo.getFreeUUID(), playerData.playerName), playerData.cloneCompound.getCompound(k).getString("ownerName"), UUID.fromString(key));
+                    FakestPlayer fakePlayer = FakestPlayer.get(Holo.server.getOverworld(), new GameProfile(Holo.getFreeUUID(), ""), playerData.cloneCompound.getCompound(k).getString("ownerName"), UUID.fromString(key));
 
                     fakePlayer.worldName = RegistryKey.of(RegistryKeys.WORLD, id);
-                    fakePlayer.teleport(server.getWorld(RegistryKey.of(RegistryKeys.WORLD, id)),playerData.cloneCompound.getCompound(k).getDouble("X"),playerData.cloneCompound.getCompound(k).getDouble("Y"),playerData.cloneCompound.getCompound(k).getDouble("Z"),(float) playerData.cloneCompound.getCompound(k).getDouble("Yaw"),(float) playerData.cloneCompound.getCompound(k).getDouble("Pitch"));
                     fakePlayer.readCustomDataFromNbt(playerData.cloneCompound.getCompound(k));
                     fakePlayer.isHologram = playerData.cloneCompound.getCompound(k).getBoolean("isHologram");
                     if (playerData.cloneCompound.getCompound(k).contains("type", NbtElement.INT_TYPE)) {
@@ -118,6 +119,7 @@ public class HoloNbtManager {
             playerNbt.putInt("lastComputerMaxPower", playerData.lastComputerMaxPower);
 
             playerData.clones.forEach((fakestPlayer -> {
+                Log.info(LogCategory.GENERAL,fakestPlayer+"");
                 NbtCompound singleCloneNbt = new NbtCompound();
                 fakestPlayer.actuallyWrite(singleCloneNbt);
                 cloneNbt.put(fakestPlayer.getUuid().toString(), singleCloneNbt);

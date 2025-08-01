@@ -3,6 +3,8 @@ package org.agmas.holo.util;
 import com.google.common.collect.MapMaker;
 import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.impl.event.interaction.FakePlayerNetworkHandler;
+import net.fabricmc.loader.impl.util.log.Log;
+import net.fabricmc.loader.impl.util.log.LogCategory;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
@@ -21,7 +23,6 @@ public class FakestPlayer extends ServerPlayerEntity {
 
     public boolean isHologram = true;
     public HologramType type = HologramType.NORMAL;
-    private static final Map<FakePlayerKey, FakestPlayer> FAKE_PLAYER_MAP;
     public float pitch;
     public float yaw;
     public String ownerName;
@@ -32,20 +33,15 @@ public class FakestPlayer extends ServerPlayerEntity {
     public static FakestPlayer get(ServerWorld world, GameProfile profile, String ownerName, UUID ownerUUID) {
         Objects.requireNonNull(world, "World may not be null.");
         Objects.requireNonNull(profile, "Game profile may not be null.");
-        return (FakestPlayer)FAKE_PLAYER_MAP.computeIfAbsent(new FakePlayerKey(world, profile), (key) -> {
-            return new FakestPlayer(key.world, key.profile,ownerName,ownerUUID);
-        });
+        return new FakestPlayer(world, profile,ownerName,ownerUUID);
     }
 
     @Override
     public void tick() {
+        Log.info(LogCategory.GENERAL, "I am " + holoName);
         tickMovement();
         super.tick();
     }
-    static {
-        FAKE_PLAYER_MAP = (new MapMaker()).weakValues().makeMap();
-    }
-
 
     @Override
     public void onDeath(DamageSource damageSource) {
@@ -56,7 +52,6 @@ public class FakestPlayer extends ServerPlayerEntity {
                     Holo.swapBody(p,this,true);
                     Holo.updateAttributesAndUpdateMode(p);
                     p.kill();
-
                 }
             }
         }
@@ -91,6 +86,23 @@ public class FakestPlayer extends ServerPlayerEntity {
         nbtCompound.putString("HoloName", holoName);
     }
 
+    @Override
+    public void copyFrom(ServerPlayerEntity oldPlayer, boolean alive) {
+        if (oldPlayer instanceof FakestPlayer fp) {
+            isHologram = fp.isHologram;
+            type = fp.type;
+            holoName = fp.holoName;
+            ownerName = fp.ownerName;
+            ownerUUID = fp.ownerUUID;
+            worldName = fp.getWorld().getRegistryKey();
+        } else {
+            //should never happen but wtv
+            isHologram = false;
+            holoName = oldPlayer.getNameForScoreboard();
+            type = HologramType.NORMAL;
+        }
+        super.copyFrom(oldPlayer, alive);
+    }
 
     private static record FakePlayerKey(ServerWorld world, GameProfile profile) {
         private FakePlayerKey(ServerWorld world, GameProfile profile) {
