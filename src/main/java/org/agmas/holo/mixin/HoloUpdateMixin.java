@@ -1,5 +1,6 @@
 package org.agmas.holo.mixin;
 
+import com.mojang.authlib.GameProfile;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
 import net.minecraft.network.ClientConnection;
@@ -13,6 +14,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import org.agmas.holo.Holo;
 import org.agmas.holo.state.HoloNbtManager;
+import org.agmas.holo.util.FakestPlayer;
 import org.agmas.holo.util.HoloModeUpdates;
 import org.agmas.holo.util.HologramType;
 import org.spongepowered.asm.mixin.Final;
@@ -22,6 +24,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Mixin(PlayerManager.class)
@@ -38,15 +41,25 @@ public class HoloUpdateMixin {
     public void sendShellUpdate(ClientConnection connection, ServerPlayerEntity player, ConnectedClientData clientData, CallbackInfo ci) {
         HoloModeUpdates.refreshHolosOnClient(player);
         Holo.updateAttributesAndUpdateMode(player);
-        HoloNbtManager.getPlayerState(player).clones.forEach((clone)->{
-            Log.info(LogCategory.GENERAL, "attempting to add " + clone.holoName);
-            Log.info(LogCategory.GENERAL,  clone.worldName.toString());
+        ArrayList<FakestPlayer> newClones = new ArrayList<>();
+        HoloNbtManager.getPlayerState(player).clones.removeIf((clone)->{
+            Log.info(LogCategory.GENERAL, "Holo joining: " + clone.ownerName + "'s " + clone.holoName);
+            if (clone.isRemoved()) {
+                Log.info(LogCategory.GENERAL, "Holo has joined before, creating a new one");
+                FakestPlayer p = Holo.summonNewBody(clone, clone.isHologram, clone.type, clone.holoName);
+                p.ownerUUID = player.getUuid();
+                p.ownerName = player.getNameForScoreboard();
+                newClones.add(p);
+                return true;
+            } else {
+                ((ServerWorld) server.getWorld(clone.worldName)).onPlayerConnected(clone);
 
-            ((ServerWorld) server.getWorld(clone.worldName)).onPlayerConnected(clone);
+                player.getServer().getPlayerManager().sendToAll(PlayerListS2CPacket.entryFromPlayer(List.of(clone)));
 
-            player.getServer().getPlayerManager().sendToAll(PlayerListS2CPacket.entryFromPlayer(List.of(clone)));
-
+                return false;
+            }
         });
+        HoloNbtManager.getPlayerState(player).clones.addAll(newClones);
         if (HoloNbtManager.getPlayerState(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
             Holo.swapBody(player,false,false);
             Holo.updateAttributesAndUpdateMode(player);

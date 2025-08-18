@@ -3,6 +3,7 @@ package org.agmas.holo;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.mojang.authlib.GameProfile;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentType;
@@ -18,6 +19,7 @@ import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
+import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.attribute.EntityAttribute;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
@@ -105,6 +107,13 @@ public class Holo implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(RequestTerminalAutocompleteC2SPacket.ID, RequestTerminalAutocompleteC2SPacket.CODEC);
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
+            dispatcher.register(CommandManager.literal("clearPlayerHoloData").requires(serverCommandSource -> serverCommandSource.hasPermissionLevel(2)).then(CommandManager.argument("player", EntityArgumentType.player()).executes(commandContext -> {
+                ServerPlayerEntity entity = EntityArgumentType.getPlayer(commandContext, "player");
+                entity.networkHandler.sendPacket(new DisconnectS2CPacket(Text.literal("Your holo data was reset by an admin\nYou will be put into human form the same way you were upon disconnecting.")));
+                HoloNbtManager.INSTANCE.players.remove(entity.getUuid());
+
+                return 1;
+        })));
             dispatcher.register(CommandManager.literal("holo_loreMode").requires(serverCommandSource -> serverCommandSource.getPlayer().getUuidAsString().equals("5de5299b-83c1-4fe4-9c47-b8aae4fed6b1")).executes(context -> {
                 if (context.getSource().getPlayer() != null) {
                     switchShellMode(context.getSource().getPlayer(), true, false);
@@ -164,7 +173,6 @@ public class Holo implements ModInitializer {
         });
         ServerPlayConnectionEvents.DISCONNECT.register(((serverPlayNetworkHandler, minecraftServer) -> {
             for (FakestPlayer clone : HoloNbtManager.getPlayerState(serverPlayNetworkHandler.player).clones) {
-                clone.worldName = clone.getServerWorld().getRegistryKey();
                 clone.getServer().getPlayerManager().remove(clone);
             }
         }));
@@ -209,7 +217,7 @@ public class Holo implements ModInitializer {
             }
             return true;
         }));
-        ServerTickEvents.START_SERVER_TICK.register((server -> {
+        ServerTickEvents.END_SERVER_TICK.register((server -> {
 
             fights.removeIf((fight)->{
                 fight.removeIf((p)->{
@@ -508,6 +516,10 @@ public class Holo implements ModInitializer {
         GameProfile profile = new GameProfile(Holo.getFreeUUID(), "");
         profile.getProperties().putAll(player.getGameProfile().getProperties());
         FakestPlayer fakePlayer = FakestPlayer.get((ServerWorld) player.getWorld(), profile, player.getNameForScoreboard(), player.getUuid());
+        if (player instanceof FakestPlayer fp) {
+            fakePlayer.ownerUUID = fp.ownerUUID;
+            fakePlayer.ownerName = fp.ownerName;
+        }
         player.getWorld().getServer().getPlayerManager().sendToAll(PlayerListS2CPacket.entryFromPlayer(List.of(fakePlayer)));
         fakePlayer.setServerWorld((ServerWorld) player.getWorld());
         fakePlayer.refreshPositionAndAngles(player.getX(),player.getY(),player.getZ(),player.getYaw(),player.getPitch());
@@ -523,8 +535,10 @@ public class Holo implements ModInitializer {
             HoloModeUpdates.sendHoloModeUpdate(fakePlayer);
         }
         fakePlayer.worldName = player.getWorld().getRegistryKey();
-        HoloNbtManager.getPlayerState(player).clones.add(fakePlayer);
-        HoloNbtManager.getPlayerState(player).playerName = player.getNameForScoreboard();
+        if (!(player instanceof FakestPlayer)) {
+            HoloNbtManager.getPlayerState(player).clones.add(fakePlayer);
+            HoloNbtManager.getPlayerState(player).playerName = player.getNameForScoreboard();
+        }
         player.getWorld().getServer().forcePlayerSampleUpdate();
         return fakePlayer;
     }

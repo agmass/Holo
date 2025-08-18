@@ -11,6 +11,7 @@ import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.agmas.holo.Holo;
 import org.agmas.holo.state.HoloNbtManager;
@@ -38,7 +39,6 @@ public class FakestPlayer extends ServerPlayerEntity {
 
     @Override
     public void tick() {
-        Log.info(LogCategory.GENERAL, "I am " + holoName);
         tickMovement();
         super.tick();
     }
@@ -56,6 +56,12 @@ public class FakestPlayer extends ServerPlayerEntity {
             }
         }
         super.onDeath(damageSource);
+    }
+
+    @Override
+    public void readCustomDataFromNbt(NbtCompound nbt) {
+        super.readCustomDataFromNbt(nbt);
+        refreshPositionAndAngles(new Vec3d(nbt.getDouble("X"),nbt.getDouble("Y"),nbt.getDouble("Z")),(float)nbt.getDouble("Yaw"),(float)nbt.getDouble("Pitch"));
     }
 
     protected FakestPlayer(ServerWorld world, GameProfile profile, String ownerName, UUID ownerUUID) {

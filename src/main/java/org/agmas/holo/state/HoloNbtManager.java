@@ -68,7 +68,7 @@ public class HoloNbtManager {
                 playerData.cloneCompound.getKeys().forEach((k -> {
                     String ids = playerData.cloneCompound.getCompound(k).getString("Dimension");
                     Identifier id = Identifier.of(ids);
-                    FakestPlayer fakePlayer = FakestPlayer.get(Holo.server.getOverworld(), new GameProfile(Holo.getFreeUUID(), ""), playerData.cloneCompound.getCompound(k).getString("ownerName"), UUID.fromString(key));
+                    FakestPlayer fakePlayer = FakestPlayer.get(Holo.server.getWorld(RegistryKey.of(RegistryKeys.WORLD, id)), new GameProfile(Holo.getFreeUUID(), ""), playerData.cloneCompound.getCompound(k).getString("ownerName"), UUID.fromString(key));
 
                     fakePlayer.worldName = RegistryKey.of(RegistryKeys.WORLD, id);
                     fakePlayer.readCustomDataFromNbt(playerData.cloneCompound.getCompound(k));
