@@ -1,0 +1,9 @@
+{
+  "stages": [
+    {
+      "type": "veil:blit",
+      "shader": "holo:silent",
+      "in": "minecraft:main"
+    }
+  ]
+}

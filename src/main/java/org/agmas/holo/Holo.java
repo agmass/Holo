@@ -27,6 +27,7 @@ import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerModelPart;
 import net.minecraft.item.ItemGroups;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.packet.CustomPayload;
@@ -44,6 +45,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.world.border.WorldBorder;
+import org.agmas.holo.mixin.PlayerEntityAccessor;
 import org.agmas.holo.state.HoloNbtManager;
 import org.agmas.holo.terminalCommands.TerminalCommand;
 import org.agmas.holo.terminalCommands.TerminalCommandParser;
@@ -416,6 +418,7 @@ public class Holo implements ModInitializer {
         clone.setScore(original.getScore());
         if (original instanceof ServerPlayerEntity spe) {
             clone.changeGameMode(spe.interactionManager.getGameMode());
+            clone.getDataTracker().set(((PlayerEntityAccessor)clone).PLAYER_MODEL_PARTS(), (byte)spe.getClientOptions().playerModelParts());
         }
         clone.setFireTicks(original.getFireTicks());
         clone.timeUntilRegen = 0;
@@ -523,6 +526,9 @@ public class Holo implements ModInitializer {
         player.getWorld().getServer().getPlayerManager().sendToAll(PlayerListS2CPacket.entryFromPlayer(List.of(fakePlayer)));
         fakePlayer.setServerWorld((ServerWorld) player.getWorld());
         fakePlayer.refreshPositionAndAngles(player.getX(),player.getY(),player.getZ(),player.getYaw(),player.getPitch());
+        if (player instanceof ServerPlayerEntity fp) {
+            fakePlayer.getDataTracker().set(((PlayerEntityAccessor) fakePlayer).PLAYER_MODEL_PARTS(), (byte) fp.getClientOptions().playerModelParts());
+        }
 
         ((ServerWorld) player.getWorld()).onPlayerConnected(fakePlayer);
         fakePlayer.isHologram = holoMode;

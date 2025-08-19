@@ -9,6 +9,7 @@
     "HoloUpdateMixin",
     "NoFakeDeathMessageMixin",
     "NoItemPickupMixin",
+    "PlayerEntityAccessor",
     "PlayerListPacketMixin",
     "SilentHologramListenerMixin"
   ],

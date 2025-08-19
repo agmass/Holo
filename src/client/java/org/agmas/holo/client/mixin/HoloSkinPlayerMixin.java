@@ -1,6 +1,7 @@
 package org.agmas.holo.client.mixin;
 
 import com.llamalad7.mixinextras.sugar.Local;
+import foundry.veil.api.client.render.rendertype.VeilRenderType;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.OverlayTexture;
@@ -33,9 +34,9 @@ public class HoloSkinPlayerMixin {
         if (HoloClient.playersInHolo.containsKey(livingEntity.getUuid())) {
             ci.cancel();
             arm.pitch = 0.0F;
-            arm.render(matrices, vertexConsumers.getBuffer(RenderLayer.getEntitySolid(player.getSkinTextures().texture())), light, OverlayTexture.DEFAULT_UV, HoloClient.HOLO_COLOR);
+            arm.render(matrices, vertexConsumers.getBuffer(VeilRenderType.get(Identifier.of("holo","scanline"), player.getSkinTextures().texture())), light, OverlayTexture.DEFAULT_UV, HoloClient.HOLO_COLOR);
             sleeve.pitch = 0.0F;
-            sleeve.render(matrices, vertexConsumers.getBuffer(RenderLayer.getEntityTranslucent(player.getSkinTextures().texture())), light, OverlayTexture.DEFAULT_UV, HoloClient.HOLO_COLOR);
+            sleeve.render(matrices, vertexConsumers.getBuffer(VeilRenderType.get(Identifier.of("holo","scanline"), player.getSkinTextures().texture())), light, OverlayTexture.DEFAULT_UV, HoloClient.HOLO_COLOR);
         }
     }
 }

@@ -1,5 +1,9 @@
 package org.agmas.holo.client;
 
+import foundry.veil.Veil;
+import foundry.veil.api.client.render.VeilRenderSystem;
+import foundry.veil.api.client.render.shader.program.ShaderProgram;
+import foundry.veil.platform.VeilEventPlatform;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -7,6 +11,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityModelLayerRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
@@ -25,9 +30,6 @@ import org.agmas.holo.client.models.WardensHorns;
 import org.agmas.holo.client.screen.TerminalChatScreen;
 import org.agmas.holo.util.HologramType;
 import org.agmas.holo.util.payloads.*;
-import org.ladysnake.satin.api.event.ShaderEffectRenderCallback;
-import org.ladysnake.satin.api.managed.ManagedShaderEffect;
-import org.ladysnake.satin.api.managed.ShaderEffectManager;
 import org.lwjgl.glfw.GLFW;
 
 import java.awt.*;
@@ -45,8 +47,7 @@ public class HoloClient implements ClientModInitializer {
     public static KeyBinding terminalBind;
     public static HologramType hologramType = null;
     public static int HOLO_COLOR = new Color(191,191,255,128).getRGB();
-    private static final ManagedShaderEffect GREYSCALE_SHADER = ShaderEffectManager.getInstance()
-            .manage(Identifier.of("holo", "shaders/silent.json"));
+    private static final Identifier CUSTOM_POST_SHADER = Identifier.of("holo", "silent");
 
     public static int hostHealth = 0;
     public static int power = 0;
@@ -54,6 +55,8 @@ public class HoloClient implements ClientModInitializer {
     public static int playersInDuel = 0;
     public static String holoName = "";
     int timesTriedToOpenTerminalAsABattleDuelHologram = 0;
+
+    float ticks = 0;
 
     @Override
     public void onInitializeClient() {
@@ -63,6 +66,18 @@ public class HoloClient implements ClientModInitializer {
                 registrationHelper.register(new WardenHornsFeatureRenderer((FeatureRendererContext<AbstractClientPlayerEntity, PlayerEntityModel<AbstractClientPlayerEntity>>) entityRenderer, context.getModelLoader()));
             }
         }));
+
+
+        WorldRenderEvents.BEFORE_ENTITIES.register((t)->{
+            ticks += MinecraftClient.getInstance().getRenderTickCounter().getLastFrameDuration();
+            ShaderProgram shader = VeilRenderSystem.setShader(Identifier.of(Holo.MOD_ID, "scanline"));
+
+            if (shader == null) {
+                return;
+            }
+
+            shader.getOrCreateUniform("STime").setFloat(ticks);
+        });
         keyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.holo.swap", // The translation key of the keybinding's name
                 InputUtil.Type.KEYSYM, // The type of the keybinding, KEYSYM for keyboard, MOUSE for mouse.
@@ -81,9 +96,18 @@ public class HoloClient implements ClientModInitializer {
             TerminalChatScreen.possibleSuggestions.addAll(packet.commands());
             TerminalChatScreen.refresh = true;
         });
-        ShaderEffectRenderCallback.EVENT.register(tickDelta -> {
-            if ((hologramType != null && hologramType.equals(HologramType.SILENT)) || MinecraftClient.getInstance().currentScreen instanceof TerminalChatScreen) {
-                GREYSCALE_SHADER.render(tickDelta);
+        VeilEventPlatform.INSTANCE.preVeilPostProcessing((pipelineName, pipeline, context) -> {
+            if (CUSTOM_POST_SHADER.equals(pipelineName)) {
+                ShaderProgram shader = context.getShader(CUSTOM_POST_SHADER);
+                if (shader != null) {
+                    if (MinecraftClient.getInstance().currentScreen instanceof TerminalChatScreen) {
+                        shader.getOrCreateUniform("shouldRender").setInt(1);
+                    } else if (hologramType != null && hologramType.equals(HologramType.SILENT)) {
+                        shader.getOrCreateUniform("shouldRender").setInt(2);
+                    } else {
+                        shader.getOrCreateUniform("shouldRender").setInt(0);
+                    }
+                }
             }
         });
 
@@ -104,13 +128,20 @@ public class HoloClient implements ClientModInitializer {
                 if (!playersInHolo.containsKey(uuid))
                     playersInHolo.put(uuid, type);
                 if (context.player() != null) {
-                    if (uuid.equals(context.player().getUuid()))
+                    if (uuid.equals(context.player().getUuid())) {
+                        VeilRenderSystem.renderer().getPostProcessingManager().add(CUSTOM_POST_SHADER);
                         hologramType = type;
+                    }
                 }
             } else {
-                hologramType = null;
+                if (context.player() != null) {
+                    if (uuid.equals(context.player().getUuid())) {
+                        VeilRenderSystem.renderer().getPostProcessingManager().remove(CUSTOM_POST_SHADER);
+                        hologramType = null;
+                        MinecraftClient.getInstance().getWindow().setFramerateLimit(MinecraftClient.getInstance().options.getMaxFps().getValue());
+                    }
+                }
                 playersInHolo.remove(uuid);
-                MinecraftClient.getInstance().getWindow().setFramerateLimit(MinecraftClient.getInstance().options.getMaxFps().getValue());
 
             }
         });
