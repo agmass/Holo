@@ -1,5 +1,7 @@
 package org.agmas.holo.client.mixin;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.attribute.EntityAttributes;
@@ -13,12 +15,12 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(AbstractClientPlayerEntity.class)
 public abstract class FovFixerMixin {
 
-    @Redirect(method = "getFovMultiplier", at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/player/PlayerAbilities;getWalkSpeed()F"))
-    public float visibilityMixin(PlayerAbilities instance) {
+    @WrapOperation(method = "getFovMultiplier", at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/player/PlayerAbilities;getWalkSpeed()F"))
+    public float visibilityMixin(PlayerAbilities instance, Operation<Float> original) {
         if (HoloClient.hologramType != null) {
             if (HoloClient.hologramType != HologramType.BATTLE_DUEL)
                 return (float) ((LivingEntity)(Object)this).getAttributeValue(EntityAttributes.GENERIC_MOVEMENT_SPEED);
         }
-        return instance.getWalkSpeed();
+        return original.call(instance);
     }
 }

@@ -14,7 +14,8 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.agmas.holo.Holo;
-import org.agmas.holo.state.HoloNbtManager;
+import org.agmas.holo.state.ClonePlayerComponent;
+import org.agmas.holo.state.HoloPlayerComponent;
 
 import java.util.Map;
 import java.util.Objects;
@@ -48,9 +49,7 @@ public class FakestPlayer extends ServerPlayerEntity {
         if (!isHologram) {
             ServerPlayerEntity p = getServer().getPlayerManager().getPlayer(ownerUUID);
             if (p != null) {
-                if (HoloNbtManager.getPlayerState(p).clones.contains(this)) {
-                    Holo.swapBody(p,this,true);
-                    Holo.updateAttributesAndUpdateMode(p);
+                if (ClonePlayerComponent.KEY.get(p).clones.contains(this)) {
                     p.kill();
                 }
             }

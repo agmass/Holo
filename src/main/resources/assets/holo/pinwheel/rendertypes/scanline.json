@@ -2,7 +2,7 @@
   "format": "POSITION_COLOR_TEX_LIGHTMAP",
   "mode": "QUADS",
   "bufferSize": "TRANSIENT",
-  "sort": false,
+  "sort": true,
   "affectsCrumbling": true,
   "outline": false,
   "layers": [
@@ -17,6 +17,10 @@
       "name": "holo:scanline"
     },
     {
+      "type": "minecraft:transparency",
+      "mode": "translucent"
+    },
+    {
       "type": "minecraft:cull"
     },
     {
@@ -25,10 +29,6 @@
     },
     {
       "type": "minecraft:lightmap"
-    },
-    {
-      "type": "minecraft:transparency",
-      "mode": "translucent"
     },
     {
       "type": "minecraft:write_mask",

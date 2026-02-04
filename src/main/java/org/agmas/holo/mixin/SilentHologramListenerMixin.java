@@ -15,7 +15,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.event.EntityPositionSource;
 import net.minecraft.world.event.GameEvent;
 import org.agmas.holo.Holo;
-import org.agmas.holo.state.HoloNbtManager;
+import org.agmas.holo.state.HoloPlayerComponent;
 import org.agmas.holo.util.HologramType;
 import org.agmas.holo.util.payloads.TemporarilyShowEntityS2CPacket;
 import org.spongepowered.asm.mixin.Mixin;
@@ -35,7 +35,7 @@ public abstract class SilentHologramListenerMixin {
     @Inject(method = "emitGameEvent", at = @At("HEAD"))
     public void sendShellUpdate(RegistryEntry<GameEvent> event, Vec3d emitterPos, GameEvent.Emitter emitter, CallbackInfo ci) {
         getPlayers().forEach((p)->{
-            if (HoloNbtManager.getPlayerState(p).hologramType.equals(HologramType.SILENT) && emitterPos.isInRange(p.getEyePos(), 30)) {
+            if (HoloPlayerComponent.KEY.get(p).hologramType.equals(HologramType.SILENT) && emitterPos.isInRange(p.getEyePos(), 30)) {
                 if (emitter.sourceEntity() != p) {
                     int d = (int) (1.0 - (20 / emitterPos.distanceTo(p.getEyePos())));
                     double e = MathHelper.lerp(d, emitterPos.x, p.getEyePos().x);

@@ -1,5 +1,10 @@
 package org.agmas.holo.client.mixin;
 
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Local;
+import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
@@ -9,6 +14,7 @@ import net.minecraft.client.gui.hud.InGameHud;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.player.HungerManager;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.OrderedText;
@@ -16,7 +22,9 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Colors;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
+import org.agmas.holo.Holo;
 import org.agmas.holo.client.HoloClient;
+import org.agmas.holo.state.HoloPlayerComponent;
 import org.agmas.holo.util.HologramType;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -116,12 +124,37 @@ public abstract class HoloUIMixin {
             }
         }
     }
-    @Redirect(method = "renderStatusBars", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/hud/InGameHud;getHeartCount(Lnet/minecraft/entity/LivingEntity;)I"))
-    public int noFood(InGameHud instance, LivingEntity entity) {
-        if (HoloClient.playersInHolo.containsKey(getCameraPlayer().getUuid()) && getRiddenEntity() == null) {
-            return -1;
+    @WrapOperation(method = "renderFood", at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/player/HungerManager;getFoodLevel()I"))
+    public int showSaturation(HungerManager instance, Operation<Integer> original) {
+        if (HoloClient.hologramType == HologramType.BATTLE || HoloClient.hologramType == HologramType.BATTLE_DUEL) {
+            return (int) instance.getSaturationLevel();
         }
-        return getHeartCount(getRiddenEntity());
+        return original.call(instance);
+    }
+    @WrapOperation(method = "renderFood", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/DrawContext;drawGuiTexture(Lnet/minecraft/util/Identifier;IIII)V", ordinal = 0))
+    public void changeFoodTexturesEmpty(DrawContext instance, Identifier texture, int x, int y, int width, int height, Operation<Void> original) {
+        if (HoloClient.hologramType == HologramType.BATTLE || HoloClient.hologramType == HologramType.BATTLE_DUEL) {
+            instance.drawTexture(Identifier.of(Holo.MOD_ID, "textures/gui/sprites/hud/gold_food_empty.png"),x,y,0,0,9,9,9,9);
+            return;
+        }
+        original.call(instance,texture,x,y,width,height);
+    }
+
+    @WrapOperation(method = "renderFood", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/DrawContext;drawGuiTexture(Lnet/minecraft/util/Identifier;IIII)V", ordinal = 1))
+    public void changeFoodTextures(DrawContext instance, Identifier texture, int x, int y, int width, int height, Operation<Void> original) {
+        if (HoloClient.hologramType == HologramType.BATTLE || HoloClient.hologramType == HologramType.BATTLE_DUEL) {
+            instance.drawTexture(Identifier.of(Holo.MOD_ID, "textures/gui/sprites/hud/gold_food_full.png"),x,y,0,0,9,9,9,9);
+            return;
+        }
+        original.call(instance,texture,x,y,width,height);
+    }
+    @WrapOperation(method = "renderFood", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/DrawContext;drawGuiTexture(Lnet/minecraft/util/Identifier;IIII)V", ordinal = 2))
+    public void changeFoodTexturesHalf(DrawContext instance, Identifier texture, int x, int y, int width, int height, Operation<Void> original) {
+        if (HoloClient.hologramType == HologramType.BATTLE || HoloClient.hologramType == HologramType.BATTLE_DUEL) {
+            instance.drawTexture(Identifier.of(Holo.MOD_ID, "textures/gui/sprites/hud/gold_food_half.png"),x,y,0,0,9,9,9,9);
+            return;
+        }
+        original.call(instance,texture,x,y,width,height);
     }
 
     @Inject(method = "renderMiscOverlays", at = @At("HEAD"), cancellable = true)
@@ -129,7 +162,7 @@ public abstract class HoloUIMixin {
         LocalDate localDate = LocalDate.now();
         int i = localDate.get(ChronoField.DAY_OF_MONTH);
         int j = localDate.get(ChronoField.MONTH_OF_YEAR);
-        if (HoloClient.playersInHolo.containsKey(client.cameraEntity.getUuid())) {
+        if (HoloPlayerComponent.KEY.get(getCameraPlayer()).inHoloMode) {
 
 
             renderOverlay(context,(j == 12 && i == 25) ? Identifier.of("holo", "textures/misc/christmas_shell_vignette.png") : SHELL_VIGNETTE_TEXTURE, 0.5f);

@@ -4,8 +4,9 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.agmas.holo.Holo;
-import org.agmas.holo.state.HoloNbtManager;
+import org.agmas.holo.state.HoloPlayerComponent;
 import org.agmas.holo.util.HoloModifiers;
+import org.agmas.holo.util.HologramType;
 
 import java.util.ArrayList;
 
@@ -14,8 +15,9 @@ public class DisableCommand extends TerminalCommand{
     public ArrayList<String> autoCompletion(ServerPlayerEntity player) {
         ArrayList<String> str = new ArrayList<>();
         for (HoloModifiers value : HoloModifiers.values()) {
-            if (HoloNbtManager.getPlayerState(player).loreAccurate && !Holo.loreAllowedModifiers.contains(value)) continue;
-            if (!HoloNbtManager.getPlayerState(player).activeModifiers.contains(value)) continue;
+            if (HoloPlayerComponent.KEY.get(player).loreAccurate && !Holo.loreAllowedModifiers.contains(value)) continue;
+            if (!HoloPlayerComponent.KEY.get(player).activeModifiers.contains(value)) continue;
+            if (HoloPlayerComponent.KEY.get(player).hologramType.equals(HologramType.SCOUT)) continue;
             str.add("disable " + value.toString());
         }
         return str;
@@ -28,9 +30,9 @@ public class DisableCommand extends TerminalCommand{
         }
         String referencedHoloMod = cmd.split(" ")[1].toLowerCase();
         for (HoloModifiers value : HoloModifiers.values()) {
-            if (HoloNbtManager.getPlayerState(player).loreAccurate && !Holo.loreAllowedModifiers.contains(value)) continue;
+            if (HoloPlayerComponent.KEY.get(player).loreAccurate && !Holo.loreAllowedModifiers.contains(value)) continue;
             if (referencedHoloMod.equals(value.toString().toLowerCase())) {
-                HoloNbtManager.getPlayerState(player).activeModifiers.remove(value);
+                HoloPlayerComponent.KEY.get(player).activeModifiers.remove(value);
                 Holo.updateAttributesForModifiers(player,true);
                 return Text.literal("Disabled modifier " + value.toString()).formatted(Formatting.GREEN);
             }

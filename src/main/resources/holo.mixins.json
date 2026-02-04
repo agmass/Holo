@@ -5,13 +5,20 @@
   "compatibilityLevel": "JAVA_17",
   "mixins": [
     "BattleHologramOnlyHealFromSaturationMixin",
+    "CannotModifyInBattleMixinVehicle",
     "CannotModifyMixin",
     "HoloUpdateMixin",
+    "NoAllayMixin",
     "NoFakeDeathMessageMixin",
+    "NoItemFrameMixin",
     "NoItemPickupMixin",
     "PlayerEntityAccessor",
     "PlayerListPacketMixin",
-    "SilentHologramListenerMixin"
+    "SilentHologramListenerMixin",
+    "StopItemDropMixin",
+    "compat.InfernumMaceMixin",
+    "compat.PebbleCannonMixin",
+    "compat.XaeroFixMixin"
   ],
   "injectors": {
     "defaultRequire": 1

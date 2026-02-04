@@ -8,7 +8,6 @@
     "EntityRenderDispatcherMixin",
     "FovFixerMixin",
     "HoloSkinMixin",
-    "HoloSkinPlayerMixin",
     "HoloUIMixin",
     "TerminalInputSuggestorMixin",
     "UnfocusChatInTerminal"

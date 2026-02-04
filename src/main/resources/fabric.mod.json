@@ -15,6 +15,18 @@
     ],
     "main": [
       "org.agmas.holo.Holo"
+    ],
+    "cardinal-components": [
+      "org.agmas.holo.state.HoloComponents"
+    ],
+    "modmenu": [
+      "org.agmas.holo.client.config.HoloModMenuIntergration"
+    ]
+  },
+  "custom": {
+    "cardinal-components": [
+      "holo:holo",
+      "holo:clone"
     ]
   },
   "mixins": [
@@ -27,6 +39,7 @@
   "depends": {
     "fabricloader": ">=${loader_version}",
     "fabric": "*",
-    "minecraft": "${minecraft_version}"
+    "minecraft": "${minecraft_version}",
+    "veil": ">=2.5.1"
   }
 }

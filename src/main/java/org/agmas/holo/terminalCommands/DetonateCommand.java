@@ -5,7 +5,8 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.world.World;
-import org.agmas.holo.state.HoloNbtManager;
+import org.agmas.holo.state.ClonePlayerComponent;
+import org.agmas.holo.state.HoloPlayerComponent;
 import org.agmas.holo.util.FakestPlayer;
 
 import java.util.ArrayList;
@@ -14,9 +15,9 @@ public class DetonateCommand extends TerminalCommand{
     @Override
     public ArrayList<String> autoCompletion(ServerPlayerEntity player) {
         ArrayList<String> str = new ArrayList<>();
-        if (HoloNbtManager.getPlayerState(player).inHoloMode)
+        if (HoloPlayerComponent.KEY.get(player).inHoloMode)
             str.add("detonate");
-        HoloNbtManager.getPlayerState(player).clones.forEach((p)->{
+        ClonePlayerComponent.KEY.get(player).clones.forEach((p)->{
             if (p.isHologram)
                 str.add("detonate " + p.holoName);
         });
@@ -27,22 +28,22 @@ public class DetonateCommand extends TerminalCommand{
     public Text run(String cmd, ServerPlayerEntity player) {
         PlayerEntity holoToDetonate = null;
         if (cmd.split(" ").length == 1) {
-            if (HoloNbtManager.getPlayerState(player).inHoloMode) {
+            if (HoloPlayerComponent.KEY.get(player).inHoloMode) {
                 holoToDetonate = player;
             } else {
                 return Text.literal("Your flesh is not equipped with a bomb.").formatted(Formatting.RED);
             }
         } else {
             String referencedHolo = cmd.split(" ")[1];
-            if (referencedHolo.equals(HoloNbtManager.getPlayerState(player).holoName)) {
-                if (HoloNbtManager.getPlayerState(player).inHoloMode) {
+            if (referencedHolo.equals(HoloPlayerComponent.KEY.get(player).holoName)) {
+                if (HoloPlayerComponent.KEY.get(player).inHoloMode) {
                     holoToDetonate = player;
                 } else {
                     return Text.literal("Your flesh is not equipped with a bomb.").formatted(Formatting.RED);
                 }
             }
 
-            for (FakestPlayer c : HoloNbtManager.getPlayerState(player).clones) {
+            for (FakestPlayer c : ClonePlayerComponent.KEY.get(player).clones) {
                 if (c.holoName.equals(referencedHolo)) {
                     if (c.isHologram) {
                         holoToDetonate = c;

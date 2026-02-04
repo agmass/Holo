@@ -32,7 +32,7 @@ public class BattleHologramComputer extends HologramController{
     }
 
     protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
-        builder.add(new Property[]{HologramController.FACING,POWER_UPGRADES,INFINITE,HOLOGRAM_COUNT});
+        builder.add(new Property[]{HologramController.FACING,HologramController.USING,POWER_UPGRADES,INFINITE,HOLOGRAM_COUNT});
     }
 
     @Override
@@ -42,6 +42,20 @@ public class BattleHologramComputer extends HologramController{
             stacks.add(new ItemStack(ModItems.BATTLE_HOLOGRAM_SPAWN_EGG, state.get(HOLOGRAM_COUNT) - 2));
         }
         return stacks;
+    }
+
+    @Override
+    public BlockState onBreak(World world, BlockPos pos, BlockState state, PlayerEntity player) {
+        BattleHologramComputerEntry entryToRemove = null;
+        for (BattleHologramComputerEntry entry : Holo.playersWaitingForBattle.keySet()) {
+            if (entry.pos.equals(pos)) {
+                entryToRemove = entry;
+            }
+        }
+        if (entryToRemove != null) {
+            Holo.playersWaitingForBattle.remove(entryToRemove);
+        }
+        return super.onBreak(world, pos, state, player);
     }
 
     @Override
@@ -94,8 +108,9 @@ public class BattleHologramComputer extends HologramController{
                 if (!Holo.playersWaitingForBattle.containsKey(thisComputer)) {
                     Holo.playersWaitingForBattle.put(thisComputer, new ArrayList<>());
                 }
-                if (Holo.playersWaitingForBattle.size() <= state.get(HOLOGRAM_COUNT)-1) {
+                if (Holo.playersWaitingForBattle.get(thisComputer).size() <= state.get(HOLOGRAM_COUNT)-1) {
                     Holo.playersWaitingForBattle.get(thisComputer).add(player);
+                    world.setBlockState(pos, state.with(USING, true));
                     player.sendMessage(Text.literal("Joined Arena!").formatted(Formatting.GREEN), true);
                     if (state.get(HOLOGRAM_COUNT) > 2) {
                         player.sendMessage(Text.literal("To start a match early, Shift+Click the computer while queued.").formatted(Formatting.BLUE));
@@ -108,6 +123,9 @@ public class BattleHologramComputer extends HologramController{
                     return ActionResult.SUCCESS;
                 }
                 Holo.playersWaitingForBattle.get(oldComputer).remove(player);
+                if (Holo.playersWaitingForBattle.get(oldComputer).isEmpty()) {
+                    world.setBlockState(pos, state.with(USING, false));
+                }
                 player.sendMessage(Text.literal("Left Arena").formatted(Formatting.RED), true);
             }
         }

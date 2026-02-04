@@ -4,7 +4,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.agmas.holo.Holo;
-import org.agmas.holo.state.HoloNbtManager;
+import org.agmas.holo.state.HoloPlayerComponent;
 
 import java.util.ArrayList;
 
@@ -12,7 +12,7 @@ public class ExitCommand extends TerminalCommand{
     @Override
     public ArrayList<String> autoCompletion(ServerPlayerEntity player) {
         ArrayList<String> str = new ArrayList<>();
-        if (HoloNbtManager.getPlayerState(player).inHoloMode)
+        if (HoloPlayerComponent.KEY.get(player).inHoloMode)
             str.add("exit");
         return str;
     }

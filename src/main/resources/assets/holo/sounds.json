@@ -1,0 +1,14 @@
+{
+  "holo_death": {
+    "subtitle": "sound.holo.holo_death",
+    "sounds": [
+      "holo:holo_death"
+    ]
+  },
+  "holo_switch": {
+    "subtitle": "sound.holo.holo_switch",
+    "sounds": [
+      "holo:holo_switch"
+    ]
+  }
+}
