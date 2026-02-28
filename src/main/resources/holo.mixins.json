@@ -12,6 +12,7 @@
     "NoFakeDeathMessageMixin",
     "NoItemFrameMixin",
     "NoItemPickupMixin",
+    "NoTridentDupingMixin",
     "PlayerEntityAccessor",
     "PlayerListPacketMixin",
     "SilentHologramListenerMixin",

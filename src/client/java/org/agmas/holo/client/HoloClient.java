@@ -163,7 +163,7 @@ public class HoloClient implements ClientModInitializer {
                 return;
             }
 
-            shader.getOrCreateUniform("STime").setFloat(ticks);
+            shader.getUniform("STime").setFloat(ticks);
             if (ticks >= 60) {
                 ticks = 0;
             }
@@ -191,13 +191,13 @@ public class HoloClient implements ClientModInitializer {
                 ShaderProgram shader = context.getShader(CUSTOM_POST_SHADER);
                 if (shader != null) {
                     if (MinecraftClient.getInstance().currentScreen instanceof TerminalChatScreen) {
-                        shader.getOrCreateUniform("shouldRender").setInt(1);
+                        shader.getUniform("shouldRender").setInt(1);
                     } else if (hologramType != null && hologramType.equals(HologramType.SILENT)) {
-                        shader.getOrCreateUniform("shouldRender").setInt(2);
+                        shader.getUniform("shouldRender").setInt(2);
                     } else {
-                        shader.getOrCreateUniform("shouldRender").setInt(0);
+                        shader.getUniform("shouldRender").setInt(0);
                     }
-                    shader.getOrCreateUniform("noiseTime").setFloat(noiseTime);
+                    shader.getUniform("noiseTime").setFloat(noiseTime);
                     noiseTime -= MinecraftClient.getInstance().getRenderTickCounter().getLastFrameDuration()/20;
                 }
             }

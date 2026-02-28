@@ -50,6 +50,7 @@ public class FakestPlayer extends ServerPlayerEntity {
             ServerPlayerEntity p = getServer().getPlayerManager().getPlayer(ownerUUID);
             if (p != null) {
                 if (ClonePlayerComponent.KEY.get(p).clones.contains(this)) {
+                    Holo.switchShellMode(p, true, false);
                     p.kill();
                 }
             }
