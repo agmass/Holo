@@ -72,7 +72,7 @@ dependencies {
     modApi files("libs/infernum-effugium-1.3.9+1.21.1.jar")
     modApi files("libs/hardcorerevival-fabric-1.21.1-21.1.13.jar")
     modApi "net.blay09.mods:balm-common:21.0.56+1.21.1"
-    modApi files("libs/holidaylib-1.0.jar")
+    modApi files("libs/holidaylib-1.1.2.jar")
     modApi "maven.modrinth:iris:1.8.8+1.21.1-fabric"
     modApi files("libs/xaerolib-fabric-1.21.1-1.0.45.jar");
     modImplementation "org.ladysnake.cardinal-components-api:cardinal-components-base:${project.cca_version}"

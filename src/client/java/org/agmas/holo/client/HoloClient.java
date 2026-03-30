@@ -40,6 +40,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.agmas.holidaylib.client.HolidaylibClient;
+import org.agmas.holidaylib.client.events.ModifyPlayerOuterRenderLayer;
 import org.agmas.holidaylib.client.events.ModifyPlayerRenderLayer;
 import org.agmas.holidaylib.client.events.ModifyPlayerSkinTint;
 import org.agmas.holo.Holo;
@@ -97,8 +98,7 @@ public class HoloClient implements ClientModInitializer {
             }
         }));
 
-        ModifyPlayerRenderLayer.EVENT.register((player,texture)->{
-
+        ModifyPlayerRenderLayer.EVENT.register((player, texture)->{
             if (HoloClient.playersInHolo.containsKey(player.getUuid()) || HoloPlayerComponent.KEY.get(player).inHoloMode) {
                 ModifyPlayerRenderLayer.Entry entry = new ModifyPlayerRenderLayer.Entry();
                 entry.layer = HolidaylibClient.shaderFallbackLayer(VeilRenderType.get(Identifier.of("holo","scanline"),texture), HolidaylibClient.translucentMaskedEmissiveRenderLayer(texture));
@@ -108,6 +108,7 @@ public class HoloClient implements ClientModInitializer {
             }
             return null;
         });
+
         ModifyPlayerSkinTint.EVENT.register((player)->{
             if (HoloClient.playersInHolo.containsKey(player.getUuid()) || HoloPlayerComponent.KEY.get(player).inHoloMode) {
                 HologramType type = HoloPlayerComponent.KEY.get(player).hologramType;
