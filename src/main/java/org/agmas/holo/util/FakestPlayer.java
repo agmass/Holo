@@ -11,11 +11,14 @@ import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.agmas.holo.Holo;
 import org.agmas.holo.state.ClonePlayerComponent;
 import org.agmas.holo.state.HoloPlayerComponent;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.Objects;
@@ -45,13 +48,25 @@ public class FakestPlayer extends ServerPlayerEntity {
     }
 
     @Override
+    public Text getDisplayName() {
+        return Text.literal(holoName).formatted(Formatting.BLUE);
+    }
+
+    @Override
     public void onDeath(DamageSource damageSource) {
+        ServerPlayerEntity p = getServer().getPlayerManager().getPlayer(ownerUUID);
         if (!isHologram) {
-            ServerPlayerEntity p = getServer().getPlayerManager().getPlayer(ownerUUID);
             if (p != null) {
                 if (ClonePlayerComponent.KEY.get(p).clones.contains(this)) {
                     Holo.switchShellMode(p, true, false);
                     p.kill();
+                }
+            }
+        } else {
+
+            if (p != null) {
+                if (ClonePlayerComponent.KEY.get(p).clones.contains(this)) {
+                    p.sendMessage(damageSource.getDeathMessage(this));
                 }
             }
         }

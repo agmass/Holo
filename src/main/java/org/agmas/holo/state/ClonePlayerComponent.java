@@ -9,6 +9,8 @@ import net.minecraft.nbt.NbtElement;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import org.agmas.holo.Holo;
 import org.agmas.holo.util.FakestPlayer;
@@ -79,13 +81,11 @@ public class ClonePlayerComponent implements ServerTickingComponent {
                 i.getAndIncrement();
                 clones.add(fakePlayer);
             } catch (Exception e) {
-
                 Log.error(LogCategory.GENERAL, "Failed to spawn holo: " + cloneCompound.getCompound(k).getString("HoloName") + " by " + player.getNameForScoreboard());
                 Log.error(LogCategory.GENERAL, e.getMessage());
+                player.sendMessage(Text.literal("Your hologram " + cloneCompound.getCompound(k).getString("HoloName") + " failed to spawn.").formatted(Formatting.DARK_RED));
+                player.sendMessage(Text.literal(e.getMessage()).formatted(Formatting.RED));
             }
-
-
-
         }));
     }
 }

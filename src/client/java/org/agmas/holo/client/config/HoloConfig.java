@@ -8,8 +8,8 @@ import me.shedaniel.cloth.clothconfig.shadowed.blue.endless.jankson.Comment;
 @Config(name = "holo")
 public class HoloConfig implements ConfigData {
 
-    @Comment("Veil lights can cause flickering, stutters or lag. Enable for glowing holos and computers. May requiring restarting to take into effect.")
-    public boolean useVeilLights = false;
+    @Comment("Will permenantly enable the light framebuffers in veil.")
+    public boolean useVeilLights = true;
 
 
 }

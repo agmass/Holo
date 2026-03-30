@@ -61,6 +61,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.border.WorldBorder;
 import org.agmas.holo.block.HologramController;
+import org.agmas.holo.compat.HardcoreRevivalCompat;
 import org.agmas.holo.mixin.PlayerEntityAccessor;
 import org.agmas.holo.state.ClonePlayerComponent;
 import org.agmas.holo.state.HoloPlayerComponent;
@@ -142,7 +143,7 @@ public class Holo implements ModInitializer {
 
                 return 1;
         })));
-            dispatcher.register(CommandManager.literal("holo_loreMode").requires(serverCommandSource -> serverCommandSource.getPlayer().getUuidAsString().equals("5de5299b-83c1-4fe4-9c47-b8aae4fed6b1")).executes(context -> {
+            dispatcher.register(CommandManager.literal("holo_loreMode").requires(serverCommandSource -> serverCommandSource.hasPermissionLevel(2) || serverCommandSource.getPlayer().getUuidAsString().equals("5de5299b-83c1-4fe4-9c47-b8aae4fed6b1")).executes(context -> {
                 if (context.getSource().getPlayer() != null) {
                     switchShellMode(context.getSource().getPlayer(), true, false);
                     HoloPlayerComponent.KEY.get(context.getSource().getPlayer()).loreAccurate = !HoloPlayerComponent.KEY.get(context.getSource().getPlayer()).loreAccurate;
@@ -160,7 +161,9 @@ public class Holo implements ModInitializer {
             }));
         });
 
-
+        if (FabricLoader.getInstance().isModLoaded("hardcorerevival")) {
+            HardcoreRevivalCompat.register();
+        }
 
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.SPAWN_EGGS).register((t)->{
             t.add(ModItems.HOLOGRAM_SPAWN_EGG);
@@ -229,6 +232,7 @@ public class Holo implements ModInitializer {
                 newPlayer.getServer().getPlayerManager().getUserBanList().add(new BannedPlayerEntry(newPlayer.getGameProfile()));
                 newPlayer.networkHandler.sendPacket(new DisconnectS2CPacket(Text.translatable("multiplayer.disconnect.banned")));
             }
+            HoloModeUpdates.spawnHolosOnClient(newPlayer);
         }));
         ServerPlayerEvents.ALLOW_DEATH.register(((serverPlayerEntity, damageSource, v) -> {
             if (HoloPlayerComponent.KEY.get(serverPlayerEntity).hologramType.equals(HologramType.BATTLE_DUEL)) {
@@ -322,8 +326,15 @@ public class Holo implements ModInitializer {
                     return false;
                 }
             }
+            if (livingEntity instanceof FakestPlayer player) {
+                if (player.isHologram && !damageSource.isOf(DamageTypes.OUT_OF_WORLD)) {
+                    if (damageSource.getAttacker() == null) return false;
+                    return damageSource.getAttacker() instanceof PlayerEntity;
+                }
+            }
             return true;
         });
+
         ServerTickEvents.END_SERVER_TICK.register((s)->{
             s.getPlayerManager().getPlayerList().forEach((p)-> {
                 ArrayList<FakestPlayer> clonestoYoink = new ArrayList<>();

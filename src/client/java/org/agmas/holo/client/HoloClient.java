@@ -2,6 +2,7 @@ package org.agmas.holo.client;
 
 import foundry.veil.Veil;
 import foundry.veil.api.client.render.VeilRenderSystem;
+import foundry.veil.api.client.render.dynamicbuffer.DynamicBufferType;
 import foundry.veil.api.client.render.light.data.PointLightData;
 import foundry.veil.api.client.render.light.renderer.LightRenderHandle;
 import foundry.veil.api.client.render.rendertype.VeilRenderType;
@@ -131,13 +132,15 @@ public class HoloClient implements ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register((clientPlayNetworkHandler,client)->{
             HoloConfig config = AutoConfig.getConfigHolder(HoloConfig.class).getConfig();
             if (config.useVeilLights) {
-            clientLight.free();
-            annoyingLightThatStopsShadersFromRecompiling.free();
+                clientLight.free();
+                annoyingLightThatStopsShadersFromRecompiling.free();
             }
         });
         WorldRenderEvents.AFTER_ENTITIES.register((t)->{
             HoloConfig config = AutoConfig.getConfigHolder(HoloConfig.class).getConfig();
             if (config.useVeilLights) {
+                VeilRenderSystem.renderer().enableBuffers(Identifier.of(Holo.MOD_ID, "holo_light_buffer"), DynamicBufferType.LIGHT_COLOR, DynamicBufferType.LIGHT_UV, DynamicBufferType.ALBEDO, DynamicBufferType.NORMAL);
+
                 if (clientLight == null) {
                     PointLightData pointLightData = new PointLightData();
                     clientLight = VeilRenderSystem.renderer().getLightRenderer().addLight(pointLightData);

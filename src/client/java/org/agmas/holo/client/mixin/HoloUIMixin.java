@@ -160,6 +160,7 @@ public abstract class HoloUIMixin {
     @Inject(method = "renderMiscOverlays", at = @At("HEAD"), cancellable = true)
     public void shellVignette(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
         LocalDate localDate = LocalDate.now();
+        RenderSystem.enableBlend();
         int i = localDate.get(ChronoField.DAY_OF_MONTH);
         int j = localDate.get(ChronoField.MONTH_OF_YEAR);
         if (HoloPlayerComponent.KEY.get(getCameraPlayer()).inHoloMode) {
