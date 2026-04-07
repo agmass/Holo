@@ -16,6 +16,7 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityModelLayerRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
@@ -45,13 +46,17 @@ import org.agmas.holidaylib.client.events.ModifyPlayerRenderLayer;
 import org.agmas.holidaylib.client.events.ModifyPlayerSkinTint;
 import org.agmas.holo.Holo;
 import org.agmas.holo.ModEntities;
+import org.agmas.holo.block.BattleHologramComputer;
 import org.agmas.holo.client.blockEntities.HologramControllerBlockEntityRenderer;
 import org.agmas.holo.client.config.HoloConfig;
 import org.agmas.holo.client.models.HoloLightRenderer;
 import org.agmas.holo.client.models.WardenHornsFeatureRenderer;
 import org.agmas.holo.client.models.WardensHorns;
+import org.agmas.holo.client.render.StyleMeterHUD;
+import org.agmas.holo.client.screen.DuelComputerScreen;
 import org.agmas.holo.client.screen.TerminalChatScreen;
 import org.agmas.holo.state.HoloPlayerComponent;
+import org.agmas.holo.state.StyleMeterComponent;
 import org.agmas.holo.util.HologramType;
 import org.agmas.holo.util.payloads.*;
 import org.lwjgl.glfw.GLFW;
@@ -129,6 +134,12 @@ public class HoloClient implements ClientModInitializer {
 
         AutoConfig.register(HoloConfig.class, JanksonConfigSerializer::new);
 
+        HudRenderCallback.EVENT.register(((drawContext, renderTickCounter) -> {
+            if (MinecraftClient.getInstance().player != null) {
+                if (HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).hologramType.equals(HologramType.BATTLE_DUEL))
+                    StyleMeterHUD.render(MinecraftClient.getInstance().player,drawContext,renderTickCounter);
+            }
+        }));
 
         ClientPlayConnectionEvents.DISCONNECT.register((clientPlayNetworkHandler,client)->{
             HoloConfig config = AutoConfig.getConfigHolder(HoloConfig.class).getConfig();
@@ -254,10 +265,16 @@ public class HoloClient implements ClientModInitializer {
         List<String> angrierBattleDuelWarning = List.of("You can't use the terminal in a duel hologram.", "You CAN'T use the TERMINAL in a DUEL HOLOGRAM!", "STOP TRYING TO USE THE TERMINAL!!", "Are you stupid", "Fine. I'll let you use the terminal if you click the button 100 times in a row.");
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (BattleHologramComputer.openEditScreen) {
+                client.setScreen(new DuelComputerScreen(BattleHologramComputer.editingState));
+                BattleHologramComputer.openEditScreen = false;
+            }
             shownEntities.keySet().removeIf((k)->{
                 shownEntities.put(k, shownEntities.get(k)-1);
                 return shownEntities.get(k) <= 0;
             });
+            if (client.player != null)
+                StyleMeterHUD.lastStylePoints = StyleMeterComponent.KEY.get(client.player).c_totalStyleMeter/6f;
             if (hologramType != null) {
                 if (hologramType != HologramType.BATTLE_DUEL) {
                     while (terminalBind.wasPressed()) {

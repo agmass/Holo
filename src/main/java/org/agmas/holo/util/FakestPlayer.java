@@ -44,6 +44,12 @@ public class FakestPlayer extends ServerPlayerEntity {
     @Override
     public void tick() {
         tickMovement();
+        ServerPlayerEntity p = getServer().getPlayerManager().getPlayer(ownerUUID);
+        if (p != null) {
+            if (HoloPlayerComponent.KEY.get(p).loreAccurate) {
+                getInventory().dropAll();
+            }
+        }
         super.tick();
     }
 
@@ -90,6 +96,7 @@ public class FakestPlayer extends ServerPlayerEntity {
     public NbtCompound writeNbt(NbtCompound nbt) {
         return super.writeNbt(nbt);
     }
+
 
     @Override
     public void writeCustomDataToNbt(NbtCompound nbt) {

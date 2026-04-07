@@ -24,6 +24,7 @@ import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
 import net.minecraft.block.BlockState;
 import net.minecraft.command.argument.EntityArgumentType;
+import net.minecraft.component.DataComponentTypes;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.attribute.EntityAttribute;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
@@ -37,6 +38,7 @@ import net.minecraft.entity.vehicle.ChestBoatEntity;
 import net.minecraft.entity.vehicle.ChestMinecartEntity;
 import net.minecraft.item.ItemGroups;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.PacketCallbacks;
 import net.minecraft.network.packet.CustomPayload;
@@ -65,6 +67,7 @@ import org.agmas.holo.compat.HardcoreRevivalCompat;
 import org.agmas.holo.mixin.PlayerEntityAccessor;
 import org.agmas.holo.state.ClonePlayerComponent;
 import org.agmas.holo.state.HoloPlayerComponent;
+import org.agmas.holo.state.StyleMeterComponent;
 import org.agmas.holo.terminalCommands.TerminalCommand;
 import org.agmas.holo.terminalCommands.TerminalCommandParser;
 import org.agmas.holo.util.*;
@@ -100,7 +103,6 @@ public class Holo implements ModInitializer {
     public static final CustomPayload.Id<RequestTerminalAutocompleteC2SPacket> REQUEST_TERMINAL_AUTOCOMPLETE = RequestTerminalAutocompleteC2SPacket.ID;
     public static final CustomPayload.Id<TemporarilyShowEntityS2CPacket> TEMPORARILY_SHOW_ENTITY = TemporarilyShowEntityS2CPacket.ID;
     public static final CustomPayload.Id<HoloStatusInfoS2CPacket> HOLO_STATUS_INFO = HoloStatusInfoS2CPacket.ID;
-    public static final Identifier OPEN_BATTLE_COMPUTER_SCREEN = Identifier.of(MOD_ID, "open_battle_computer_screen");
 
     public static Identifier HUMAN_DAMAGE_MODIFIER_ID = Identifier.of(Holo.MOD_ID, "human_damage");
     public static Identifier HUMAN_DAMAGE_SPEED_MODIFIER_ID = Identifier.of(Holo.MOD_ID, "human_damage_speed");
@@ -252,7 +254,6 @@ public class Holo implements ModInitializer {
             return true;
         }));
         ServerTickEvents.END_SERVER_TICK.register((server -> {
-
             queuedHoloRemovals.removeIf((clone)->{
                 clone.getWorld().getServer().getPlayerManager().sendToAll(new PlayerRemoveS2CPacket(List.of(clone.getUuid())));
                 clone.getServer().getPlayerManager().remove(clone);
@@ -289,6 +290,7 @@ public class Holo implements ModInitializer {
                         HoloPlayerComponent.KEY.get(player).inHoloMode = true;
                         HoloPlayerComponent.KEY.get(player).holoName = "duel_holo_" + i2;
                         HoloPlayerComponent.KEY.get(player).hologramType = HologramType.BATTLE_DUEL;
+                        HoloPlayerComponent.KEY.get(player).battleUsesNormalSaturation = !entry.getKey().hologramOptions.holoSaturation;
                         tinyPlayerClone((ServerPlayerEntity) player, player1);
                         tinyPlayerClone(player2, (ServerPlayerEntity) player);
                         player.requestTeleport(entry.getKey().pos.getX(),entry.getKey().pos.getY(),entry.getKey().pos.getZ());
@@ -297,15 +299,26 @@ public class Holo implements ModInitializer {
                         HoloModeUpdates.sendHoloModeUpdate(player);
                         fight.add(player);
                         for (int i = 0; i <  player.getInventory().size(); i++) {
-                            player.getInventory().setStack(i, player1.getInventory().getStack(i).copy());
+                            if (entry.getKey().hologramOptions.noEnchantments) {
+                                ItemStack stack = player1.getInventory().getStack(i).copy();
+                                stack.remove(DataComponentTypes.ENCHANTMENTS);
+                                player.getInventory().setStack(i, stack);
+                            } else {
+                                player.getInventory().setStack(i, player1.getInventory().getStack(i).copy());
+                            }
                         }
                         player.getInventory().markDirty();
+                        if (entry.getKey().hologramOptions.alwaysHaveBestPotions) {
+                            player.addStatusEffect(new StatusEffectInstance(StatusEffects.STRENGTH, StatusEffectInstance.INFINITE, 2));
+                            player.addStatusEffect(new StatusEffectInstance(StatusEffects.SPEED, StatusEffectInstance.INFINITE, 2));
+                            player.addStatusEffect(new StatusEffectInstance(StatusEffects.FIRE_RESISTANCE, StatusEffectInstance.INFINITE, 1));
+                        }
 
                         WorldBorder worldBorder = new WorldBorder();
                         worldBorder.setCenter(entry.getKey().pos.getX()*entry.getKey().world.getDimension().coordinateScale(), entry.getKey().pos.getZ()*entry.getKey().world.getDimension().coordinateScale());
-                        worldBorder.setSize(24);
+                        worldBorder.setSize(entry.getKey().hologramOptions.worldBorderSize);
                         if (player instanceof ServerPlayerEntity spe) {
-                            if (!entry.getKey().infinite) {
+                            if (entry.getKey().hologramOptions.worldBorderSize == 0) {
                                 spe.networkHandler.sendPacket(new WorldBorderCenterChangedS2CPacket(worldBorder));
                                 spe.networkHandler.sendPacket(new WorldBorderSizeChangedS2CPacket(worldBorder));
                             }
@@ -320,6 +333,54 @@ public class Holo implements ModInitializer {
                 }
             }
         }));
+        ServerLivingEntityEvents.AFTER_DEATH.register((livingEntity,damageSource)->{
+
+            if (damageSource.getAttacker() != null && damageSource.getAttacker() instanceof PlayerEntity player) {
+                if (player.getMainHandStack().isOf(Items.MACE)) {
+                    StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.SMASH);
+                }
+                StyleMeterComponent.KEY.get(player).consecutiveHits++;
+                if (StyleMeterComponent.KEY.get(player).consecutiveHits > 10 && StyleMeterComponent.KEY.get(player).consecutiveHits % 10 == 0) {
+                    StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.TEN_COMBO);
+                }
+                StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.DAMAGE);
+                if (livingEntity instanceof PlayerEntity) {
+                    if (damageSource.isOf(DamageTypes.ARROW) || damageSource.isOf(DamageTypes.TRIDENT) || damageSource.isOf(DamageTypes.WIND_CHARGE)) {
+                        StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.RANGED_KILL);
+                    }
+                    StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.KILLED_PLAYER);
+                } else {
+                    StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.KILLED_MOB);
+                }
+            }
+        });
+        ServerLivingEntityEvents.AFTER_DAMAGE.register((livingEntity,damageSource,baseDamageTaken, damageTaken, blocked)->{
+            if (!blocked) {
+                if (livingEntity instanceof PlayerEntity player) {
+                    StyleMeterComponent.KEY.get(player).consecutiveHits = 0;
+                }
+                if (damageSource.getAttacker() != null && damageSource.getAttacker() instanceof PlayerEntity player) {
+                    StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.DAMAGE);
+                    if (player.getHealth() < 4) {
+                        StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.BERSERK);
+                    }
+                    if (player.getMainHandStack().isOf(Items.MACE) && damageTaken > 10) {
+                        StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.SMASH);
+                    }
+                    if (damageSource.isOf(DamageTypes.ARROW) || damageSource.isOf(DamageTypes.TRIDENT) || damageSource.isOf(DamageTypes.WIND_CHARGE)) {
+                        StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.RANGED);
+                    }
+                    if (StyleMeterComponent.KEY.get(player).lastItemUsed != player.getMainHandStack().getItem()) {
+                        StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.ARSENAL);
+                        StyleMeterComponent.KEY.get(player).lastItemUsed = player.getMainHandStack().getItem();
+                    }
+                    StyleMeterComponent.KEY.get(player).consecutiveHits++;
+                    if (StyleMeterComponent.KEY.get(player).consecutiveHits > 10 && StyleMeterComponent.KEY.get(player).consecutiveHits % 10 == 0) {
+                        StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.TEN_COMBO);
+                    }
+                }
+            }
+        });
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((livingEntity,damageSource,damage)->{
             if (livingEntity instanceof PlayerEntity player) {
                 if (HoloPlayerComponent.KEY.get(player).hologramType.equals(HologramType.SCOUT) && damageSource.isOf(DamageTypes.FALL)) {
@@ -475,7 +536,7 @@ public class Holo implements ModInitializer {
 
     public static void tinyPlayerClone(PlayerEntity original, ServerPlayerEntity clone) {
         clone.getAttributes().removeModifiers(getScoutAttributes(clone));
-        if (original.getHealth() > 0) {
+            if (original.getHealth() > 0 && !(HoloPlayerComponent.KEY.get(original).loreAccurate || HoloPlayerComponent.KEY.get(clone).loreAccurate)) {
             clone.getInventory().clone(original.getInventory());
             clone.getInventory().offHand.set(0, original.getOffHandStack());
         }

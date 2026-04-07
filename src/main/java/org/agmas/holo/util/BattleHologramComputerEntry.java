@@ -6,15 +6,23 @@ import net.minecraft.world.World;
 public class BattleHologramComputerEntry {
     public BlockPos pos;
     public World world;
-    public boolean infinite;
     public int count = 2;
+    public BattleHologramOptions hologramOptions;
     public boolean start = false;
 
 
-    public BattleHologramComputerEntry(BlockPos pos, World world, Boolean infinite, int count) {
+    public BattleHologramComputerEntry(BlockPos pos, World world, BattleHologramOptions hologramOptions, int count) {
         this.pos = pos;
         this.world = world;
-        this.infinite = infinite;
+        this.hologramOptions = hologramOptions;
         this.count = count;
+    }
+
+    public static class BattleHologramOptions {
+        public int worldBorderSize = 24;
+        public boolean noEnchantments = false;
+        public boolean alwaysHaveBestPotions = false;
+        public boolean holoSaturation = true;
+
     }
 }

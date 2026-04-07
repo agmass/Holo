@@ -27,7 +27,8 @@
     "cardinal-components": [
       "holo:holo",
       "holo:clone",
-      "holo:hololoyalty"
+      "holo:hololoyalty",
+      "holo:style"
     ]
   },
   "mixins": [

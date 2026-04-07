@@ -1,36 +1,43 @@
 package org.agmas.holo.client.screen;
 
 import net.fabricmc.api.EnvType;
+import net.minecraft.block.BlockState;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.SliderWidget;
+import net.minecraft.client.option.SimpleOption;
 import net.minecraft.text.Text;
 
 public class DuelComputerScreen extends Screen {
-    public DuelComputerScreen() {
+
+    public DuelComputerScreen(BlockState baseState) {
         super(Text.literal("Duel Computer Configuration Screen"));
     }
 
 
-    public ButtonWidget button1;
-    public ButtonWidget button2;
+    public SimpleOption<Boolean> alwaysPottedButton;
+    public boolean alwaysPotted = false;
+    public SimpleOption<Boolean> holoSaturationButton;
+    public boolean holoSaturation = true;
+    public SimpleOption<Boolean> noEnchantsButton;
+    public boolean noEnchants = false;
+    public SliderWidget worldBorderSizeButton;
 
     @Override
     protected void init() {
-        button1 = ButtonWidget.builder(Text.literal("Button 1"), button -> {
-                    System.out.println("You clicked button1!");
-                })
-                .dimensions(width / 2 - 205, 20, 200, 20)
-                .tooltip(Tooltip.of(Text.literal("Tooltip of button1")))
-                .build();
-        button2 = ButtonWidget.builder(Text.literal("Button 2"), button -> {
-                    System.out.println("You clicked button2!");
-                })
-                .dimensions(width / 2 + 5, 20, 200, 20)
-                .tooltip(Tooltip.of(Text.literal("Tooltip of button2")))
-                .build();
+        alwaysPottedButton = SimpleOption.ofBoolean("battlepotions",alwaysPotted);
+        noEnchantsButton = SimpleOption.ofBoolean("noenchants",noEnchants);
+        holoSaturationButton = SimpleOption.ofBoolean("normalsaturation",holoSaturation);
 
-        addDrawableChild(button1);
-        addDrawableChild(button2);
+        addDrawableChild(alwaysPottedButton);
+        addDrawableChild(holoSaturationButton.createWidget());
+        addDrawableChild(noEnchantsButton);
+    }
+
+    @Override
+    public void tick() {
+        noEnchantsButton.
+        super.tick();
     }
 }

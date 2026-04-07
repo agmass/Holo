@@ -17,6 +17,8 @@
     "PlayerListPacketMixin",
     "SilentHologramListenerMixin",
     "StopItemDropMixin",
+    "StyleMeterDamageMixin",
+    "StyleMeterShieldMixin",
     "compat.InfernumMaceMixin",
     "compat.PebbleCannonMixin",
     "compat.XaeroFixMixin"

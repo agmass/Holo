@@ -30,6 +30,7 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
 
     public boolean inHoloMode = false;
     public boolean loreAccurate = false;
+    public boolean battleUsesNormalSaturation = false;
     public HologramType hologramType = HologramType.NORMAL;
     public int totalHolosCreated = 0;
     public int lastComputerMaxPower = 0;
@@ -62,11 +63,13 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
     }
 
     public void serverTick() {
+        if (!hologramType.equals(HologramType.BATTLE_DUEL)) battleUsesNormalSaturation = false;
     }
 
     public void writeToNbt(@NotNull NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup) {
         tag.putBoolean("inHoloMode", inHoloMode);
         tag.putBoolean("loreMode", loreAccurate);
+        tag.putBoolean("battleUsesNormalSaturation", battleUsesNormalSaturation);
         tag.putString("holoName", holoName);
         tag.putInt("type", hologramType.ordinal());
         tag.putInt("totalHolosCreated",totalHolosCreated);
@@ -86,6 +89,7 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
     public void readFromNbt(@NotNull NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup) {
         inHoloMode = tag.getBoolean("inHoloMode");
         loreAccurate = tag.getBoolean("loreMode");
+        battleUsesNormalSaturation = tag.getBoolean("battleUsesNormalSaturation");
         holoName = tag.getString("holoName");
         hologramType = HologramType.values()[tag.getInt("type")];
         totalHolosCreated = tag.getInt("totalHolosCreated");

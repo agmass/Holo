@@ -170,6 +170,7 @@ public abstract class HoloUIMixin {
 
             ci.cancel();
         }
+        RenderSystem.disableBlend();
     }
 
 }
