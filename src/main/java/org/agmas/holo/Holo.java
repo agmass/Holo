@@ -115,6 +115,7 @@ public class Holo implements ModInitializer {
 
     public static Identifier HUMAN_JUMP_MODIFIER_ID = Identifier.of(Holo.MOD_ID, "human_health");
     public static SoundEvent holo_switch;
+    public static SoundEvent whatsappdanger;
     public static SoundEvent holo_death;
     public static ArrayList<FakestPlayer> queuedHoloRemovals = new ArrayList<>();
 
@@ -135,6 +136,8 @@ public class Holo implements ModInitializer {
 
         holo_switch = Registry.register(Registries.SOUND_EVENT, Identifier.of(MOD_ID, "holo_switch"),
                 SoundEvent.of(Identifier.of(MOD_ID, "holo_switch")));
+        whatsappdanger = Registry.register(Registries.SOUND_EVENT, Identifier.of(MOD_ID, "whatsappdanger"),
+                SoundEvent.of(Identifier.of(MOD_ID, "whatsappdanger")));
         holo_death = Registry.register(Registries.SOUND_EVENT, Identifier.of(MOD_ID, "holo_death"),
                 SoundEvent.of(Identifier.of(MOD_ID, "holo_death")));
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
@@ -326,6 +329,12 @@ public class Holo implements ModInitializer {
                         }
                     }
                     fights.add(fight);
+                    for (PlayerEntity playerEntity : fight) {
+                        HoloPlayerComponent.KEY.get(playerEntity).playersInFight.clear();
+                        for (PlayerEntity entity : fight) {
+                            HoloPlayerComponent.KEY.get(playerEntity).playersInFight.add(entity.getUuid());
+                        }
+                    }
                     entry.getValue().clear();
                 }
                 for (PlayerEntity player : entry.getValue()) {
@@ -335,50 +344,42 @@ public class Holo implements ModInitializer {
         }));
         ServerLivingEntityEvents.AFTER_DEATH.register((livingEntity,damageSource)->{
 
+            // Non-direct damage types
+            if (livingEntity.getAttacker() != null && livingEntity.getAttacker() instanceof PlayerEntity player) {
+                if (damageSource.isOf(DamageTypes.PLAYER_EXPLOSION) || damageSource.isOf(DamageTypes.EXPLOSION)) {
+                    StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.EXPLODED);
+                }
+                if (damageSource.isOf(DamageTypes.FALL)) {
+                    StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.SPLATTERED);
+                }
+            }
             if (damageSource.getAttacker() != null && damageSource.getAttacker() instanceof PlayerEntity player) {
-                if (player.getMainHandStack().isOf(Items.MACE)) {
-                    StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.SMASH);
+                if (damageSource.isOf(DamageTypes.ARROW) || damageSource.isOf(DamageTypes.TRIDENT) || damageSource.isOf(DamageTypes.WIND_CHARGE)) {
+                    StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.RANGED_KILL);
                 }
-                StyleMeterComponent.KEY.get(player).consecutiveHits++;
-                if (StyleMeterComponent.KEY.get(player).consecutiveHits > 10 && StyleMeterComponent.KEY.get(player).consecutiveHits % 10 == 0) {
-                    StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.TEN_COMBO);
-                }
-                StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.DAMAGE);
                 if (livingEntity instanceof PlayerEntity) {
-                    if (damageSource.isOf(DamageTypes.ARROW) || damageSource.isOf(DamageTypes.TRIDENT) || damageSource.isOf(DamageTypes.WIND_CHARGE)) {
-                        StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.RANGED_KILL);
-                    }
                     StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.KILLED_PLAYER);
                 } else {
                     StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.KILLED_MOB);
                 }
             }
+            StyleMeterComponent.handleDamage(livingEntity,damageSource);
         });
         ServerLivingEntityEvents.AFTER_DAMAGE.register((livingEntity,damageSource,baseDamageTaken, damageTaken, blocked)->{
             if (!blocked) {
                 if (livingEntity instanceof PlayerEntity player) {
                     StyleMeterComponent.KEY.get(player).consecutiveHits = 0;
-                }
-                if (damageSource.getAttacker() != null && damageSource.getAttacker() instanceof PlayerEntity player) {
-                    StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.DAMAGE);
-                    if (player.getHealth() < 4) {
-                        StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.BERSERK);
-                    }
-                    if (player.getMainHandStack().isOf(Items.MACE) && damageTaken > 10) {
-                        StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.SMASH);
-                    }
-                    if (damageSource.isOf(DamageTypes.ARROW) || damageSource.isOf(DamageTypes.TRIDENT) || damageSource.isOf(DamageTypes.WIND_CHARGE)) {
-                        StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.RANGED);
-                    }
-                    if (StyleMeterComponent.KEY.get(player).lastItemUsed != player.getMainHandStack().getItem()) {
-                        StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.ARSENAL);
-                        StyleMeterComponent.KEY.get(player).lastItemUsed = player.getMainHandStack().getItem();
-                    }
-                    StyleMeterComponent.KEY.get(player).consecutiveHits++;
-                    if (StyleMeterComponent.KEY.get(player).consecutiveHits > 10 && StyleMeterComponent.KEY.get(player).consecutiveHits % 10 == 0) {
-                        StyleMeterComponent.KEY.get(player).addStylePoints(StyleMeterComponent.StyleReason.TEN_COMBO);
+                    if (player.getUuidAsString().equals("5de5299b-83c1-4fe4-9c47-b8aae4fed6b1")) {
+                        if (HoloPlayerComponent.KEY.get(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
+                            player.getWorld().playSound((Entity)null,player.getBlockPos(),whatsappdanger,SoundCategory.MASTER,1f,(livingEntity.getRandom().nextFloat()*0.3f)+0.9f);
+                            if (damageSource.getAttacker() != null && damageSource.getAttacker() instanceof PlayerEntity player2) {
+                                StyleMeterComponent.KEY.get(player2).addStylePoints(StyleMeterComponent.StyleReason.WHATSAPP_DANGER);
+                            }
+
+                        }
                     }
                 }
+                StyleMeterComponent.handleDamage(livingEntity,damageSource);
             }
         });
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((livingEntity,damageSource,damage)->{

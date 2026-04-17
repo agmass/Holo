@@ -19,7 +19,7 @@ public class BattleHologramComputerEntry {
     }
 
     public static class BattleHologramOptions {
-        public int worldBorderSize = 24;
+        public int worldBorderSize = 128;
         public boolean noEnchantments = false;
         public boolean alwaysHaveBestPotions = false;
         public boolean holoSaturation = true;

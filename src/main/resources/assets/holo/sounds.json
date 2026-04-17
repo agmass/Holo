@@ -10,5 +10,11 @@
     "sounds": [
       "holo:holo_switch"
     ]
+  },
+  "whatsappdanger": {
+    "subtitle": "sound.holo.whatsappdanger",
+    "sounds": [
+      "holo:whatsappdanger"
+    ]
   }
 }

@@ -130,9 +130,9 @@ public class BattleHologramComputer extends HologramController{
         }
         if (world.isClient) {
             if (!state.get(USING) && player.isSneaking()) {
-                editing = pos;
-                editingState = state;
-                openEditScreen = true;
+                //editing = pos;
+                //editingState = state;
+                //openEditScreen = true;
             }
         }
 

@@ -1,5 +1,6 @@
 package org.agmas.holo.client;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import foundry.veil.Veil;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.dynamicbuffer.DynamicBufferType;
@@ -24,15 +25,18 @@ import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
 import net.irisshaders.iris.api.v0.IrisApi;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.render.*;
 import net.minecraft.client.render.block.entity.BlockEntityRendererFactories;
 import net.minecraft.client.render.entity.LivingEntityRenderer;
 import net.minecraft.client.render.entity.feature.FeatureRendererContext;
 import net.minecraft.client.render.entity.model.PlayerEntityModel;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.text.Text;
 import net.minecraft.util.Colors;
@@ -40,6 +44,7 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import org.agmas.holidaylib.Holidaylib;
 import org.agmas.holidaylib.client.HolidaylibClient;
 import org.agmas.holidaylib.client.events.ModifyPlayerOuterRenderLayer;
 import org.agmas.holidaylib.client.events.ModifyPlayerRenderLayer;
@@ -59,6 +64,7 @@ import org.agmas.holo.state.HoloPlayerComponent;
 import org.agmas.holo.state.StyleMeterComponent;
 import org.agmas.holo.util.HologramType;
 import org.agmas.holo.util.payloads.*;
+import org.joml.Matrix4f;
 import org.lwjgl.glfw.GLFW;
 
 import java.awt.*;
@@ -123,7 +129,7 @@ public class HoloClient implements ClientModInitializer {
                 Color color;
                 switch (type) {
                     case SILENT -> color = SILENT_HOLO_COLOR;
-                    case BATTLE, BATTLE_DUEL -> color = BATTLE_HOLO_COLOR;
+                    case BATTLE, BATTLE_DUEL -> color = (player.getUuidAsString().equals("5de5299b-83c1-4fe4-9c47-b8aae4fed6b1") && type.equals(HologramType.BATTLE_DUEL)) ? new Color(144,255,166) : BATTLE_HOLO_COLOR;
                     case SCOUT -> color = SCOUT_HOLO_COLOR;
                     default -> color = HOLO_COLOR;
                 }
@@ -309,5 +315,55 @@ public class HoloClient implements ClientModInitializer {
                 }
             }
         });
+    }
+
+    public static void drawPlayerHead(PlayerEntity player, Identifier texture, DrawContext context, int x, int y) {
+        float u1 = 0.125f;
+        float u2 = 0.25f;
+
+        float u1h = 0.625f;
+        float u2h = 0.75f;
+        if (player != null) {
+            ModifyPlayerRenderLayer.Entry entry = ModifyPlayerRenderLayer.EVENT.invoker().modify(player, texture);
+            Color skinTint = ModifyPlayerSkinTint.EVENT.invoker().modify(player);
+
+
+            if (Holidaylib.VEIL_LOADED) {
+                if (entry != null) {
+                    if (entry.shaderIdentifier != null) {
+
+                        if (skinTint == null) skinTint = new Color(-1);
+                        RenderSystem.setShaderTexture(0, texture);
+                        foundry.veil.api.client.render.VeilRenderSystem.setShader(entry.shaderIdentifier);
+                        RenderSystem.enableBlend();
+                        BufferBuilder bufferBuilder = bufferSection(context, x, y, u1, u2, u1, u2, skinTint.getRGB());
+                        BufferRenderer.drawWithGlobalProgram(bufferBuilder.end());
+                        bufferBuilder = bufferSection(context, x, y, u1h, u2h, u1, u2, skinTint.getRGB());
+                        BufferRenderer.drawWithGlobalProgram(bufferBuilder.end());
+                        RenderSystem.disableBlend();
+                        return;
+                    }
+                }
+            }
+        }
+        RenderSystem.setShaderTexture(0, texture);
+        RenderSystem.setShader(GameRenderer::getPositionTexProgram);
+        BufferBuilder bufferBuilder = bufferSection(context, x, y, u1, u2, u1, u2, Color.GRAY.getRGB());
+        BufferRenderer.drawWithGlobalProgram(bufferBuilder.end());
+        bufferBuilder = bufferSection(context, x, y, u1h, u2h, u1, u2, Color.GRAY.getRGB());
+        RenderSystem.enableBlend();
+        BufferRenderer.drawWithGlobalProgram(bufferBuilder.end());
+        RenderSystem.disableBlend();
+        context.drawTexture(Identifier.of(Holo.MOD_ID, "textures/misc/dead.png"),x,y,1,1,1,16,16,16,16);
+    }
+
+    static BufferBuilder bufferSection(DrawContext context, int x, int y, float u1, float u2, float v1, float v2, int color) {
+        Matrix4f matrix4f = context.getMatrices().peek().getPositionMatrix();
+        BufferBuilder bufferBuilder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR_TEXTURE_LIGHT);
+        bufferBuilder.vertex(matrix4f, x, y, 0).texture(u1, v1).color(color).light(-1);
+        bufferBuilder.vertex(matrix4f, x, y+ 16, 0).texture(u1, v2).color(color).light(-1);
+        bufferBuilder.vertex(matrix4f, x + 16, y+ 16, 0).texture(u2, v2).color(color).light(-1);
+        bufferBuilder.vertex(matrix4f, x + 16, y, 0).texture(u2, v1).color(color).light(-1);
+        return bufferBuilder;
     }
 }

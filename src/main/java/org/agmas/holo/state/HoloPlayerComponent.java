@@ -23,6 +23,7 @@ import org.ladysnake.cca.api.v3.component.tick.ServerTickingComponent;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingComponent {
     public static final ComponentKey<HoloPlayerComponent> KEY = ComponentRegistry.getOrCreate(Identifier.of(Holo.MOD_ID, "holo"), HoloPlayerComponent.class);
@@ -39,6 +40,7 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
     public int power = 0;
     public String holoName = "";
     public ArrayList<HoloModifiers> activeModifiers = new ArrayList<>();
+    public ArrayList<UUID> playersInFight = new ArrayList<>();
 
     public HoloPlayerComponent(PlayerEntity player) {
         this.player = player;
@@ -59,11 +61,13 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
         computerWorld = player.getServer().getOverworld();
         computerPos = new BlockPos(0,0,0);
         activeModifiers = new ArrayList<>();
+        playersInFight = new ArrayList<>();
         sync();
     }
 
     public void serverTick() {
         if (!hologramType.equals(HologramType.BATTLE_DUEL)) battleUsesNormalSaturation = false;
+        sync();
     }
 
     public void writeToNbt(@NotNull NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup) {
@@ -83,7 +87,13 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
         for (HoloModifiers activeModifier : activeModifiers) {
             intList.add(activeModifier.ordinal());
         }
+
+        NbtCompound compound = new NbtCompound();
+        for (UUID uuid : playersInFight) {
+            compound.putUuid(uuid.toString(), uuid);
+        }
         tag.putIntArray("activeModifiers",intList);
+        tag.put("playersInFight",compound);
     }
 
     public void readFromNbt(@NotNull NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup) {
@@ -100,6 +110,11 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
         computerPos = new BlockPos(tag.getInt("computerPosX"),tag.getInt("computerPosY"),tag.getInt("computerPosZ"));
         for (int modifiers : tag.getIntArray("activeModifiers")) {
             activeModifiers.add(HoloModifiers.values()[modifiers]);
+        }
+
+        playersInFight.clear();
+        for (String inFight : tag.getCompound("playersInFight").getKeys()) {
+            playersInFight.add(UUID.fromString(inFight));
         }
 
     }

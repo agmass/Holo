@@ -22,7 +22,7 @@ import org.jetbrains.annotations.Nullable;
 public class HologramControllerBlockEntity extends BlockEntity {
     public int age = 0;
     public boolean isBattle = false;
-    public BattleHologramComputerEntry.BattleHologramOptions hologramOptions;
+    public BattleHologramComputerEntry.BattleHologramOptions hologramOptions = new BattleHologramComputerEntry.BattleHologramOptions();
     public PointLightData pointLightData = new PointLightData();
     public LightRenderHandle<PointLightData> lightHandle;
     public HologramControllerBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {

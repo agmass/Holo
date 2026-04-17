@@ -16,28 +16,21 @@ public class DuelComputerScreen extends Screen {
     }
 
 
-    public SimpleOption<Boolean> alwaysPottedButton;
+    public ButtonWidget alwaysPottedButton;
     public boolean alwaysPotted = false;
-    public SimpleOption<Boolean> holoSaturationButton;
+    public ButtonWidget holoSaturationButton;
     public boolean holoSaturation = true;
-    public SimpleOption<Boolean> noEnchantsButton;
+    public ButtonWidget noEnchantsButton;
     public boolean noEnchants = false;
     public SliderWidget worldBorderSizeButton;
 
     @Override
     protected void init() {
-        alwaysPottedButton = SimpleOption.ofBoolean("battlepotions",alwaysPotted);
-        noEnchantsButton = SimpleOption.ofBoolean("noenchants",noEnchants);
-        holoSaturationButton = SimpleOption.ofBoolean("normalsaturation",holoSaturation);
 
-        addDrawableChild(alwaysPottedButton);
-        addDrawableChild(holoSaturationButton.createWidget());
-        addDrawableChild(noEnchantsButton);
     }
 
     @Override
     public void tick() {
-        noEnchantsButton.
         super.tick();
     }
 }

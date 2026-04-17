@@ -7,6 +7,8 @@ import com.llamalad7.mixinextras.sugar.Local;
 import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
+import net.fabricmc.loader.impl.util.log.Log;
+import net.fabricmc.loader.impl.util.log.LogCategory;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -38,10 +40,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.text.Format;
 import java.time.LocalDate;
 import java.time.temporal.ChronoField;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 @Mixin(InGameHud.class)
 public abstract class HoloUIMixin {
@@ -64,10 +63,19 @@ public abstract class HoloUIMixin {
     public void cardRender(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
         if (HoloClient.hologramType != null) {
             List<Text> lines;
+            int drawY = context.getScaledWindowHeight();
+            drawY -= 18;
             if (HoloClient.hologramType.equals(HologramType.BATTLE_DUEL)) {
                 Text line1 = Text.literal("■ " + HoloClient.holoName.toUpperCase()).formatted(Formatting.DARK_RED);
                 Text line2 = Text.literal("IN A DUEL").formatted(Formatting.DARK_GRAY);
                 Text line4 = Text.literal("■ ").formatted(Formatting.RED).append(Text.literal(HoloClient.playersInDuel + " players left.").formatted(Formatting.WHITE));
+                int i = 0;
+                Log.info(LogCategory.GENERAL,HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).playersInFight+"");
+                for (UUID uuid : HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).playersInFight) {
+                    i++;
+                    PlayerEntity otherPlayer = MinecraftClient.getInstance().world.getPlayerByUuid(uuid);
+                    HoloClient.drawPlayerHead(otherPlayer, MinecraftClient.getInstance().getNetworkHandler().getPlayerListEntry(uuid).getSkinTextures().texture(), context, context.getScaledWindowWidth() - ((18)*i), drawY);
+                }
                lines = List.of(line4, Text.of(" "), line2, line1);
             } else {
                 Text line1 = Text.literal("■ " + HoloClient.holoName.toUpperCase()).formatted(Formatting.AQUA);
@@ -116,7 +124,7 @@ public abstract class HoloUIMixin {
                 }
                 lines = List.of(line,line2,line3);
             }
-            int drawY = context.getScaledWindowHeight();
+            drawY -= 8;
 
             for (Text line : lines) {
                 drawY -= getTextRenderer().getWrappedLinesHeight(line, 999999);

@@ -1,4 +1,4 @@
-    #version 410
+#version 410
 
 uniform sampler2D Sampler0;
 in vec2 texCoord0;
