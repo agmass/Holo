@@ -8,6 +8,8 @@ import foundry.veil.api.client.render.light.data.PointLightData;
 import foundry.veil.api.client.render.light.renderer.LightRenderHandle;
 import foundry.veil.api.client.render.rendertype.VeilRenderType;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
+import foundry.veil.api.event.VeilRenderLevelStageEvent;
+import foundry.veil.fabric.event.FabricVeilRenderLevelStageEvent;
 import foundry.veil.platform.VeilEventPlatform;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.serializer.JanksonConfigSerializer;
@@ -51,12 +53,14 @@ import org.agmas.holidaylib.client.events.ModifyPlayerRenderLayer;
 import org.agmas.holidaylib.client.events.ModifyPlayerSkinTint;
 import org.agmas.holo.Holo;
 import org.agmas.holo.ModEntities;
+import org.agmas.holo.ModItems;
 import org.agmas.holo.block.BattleHologramComputer;
 import org.agmas.holo.client.blockEntities.HologramControllerBlockEntityRenderer;
 import org.agmas.holo.client.config.HoloConfig;
 import org.agmas.holo.client.models.HoloLightRenderer;
 import org.agmas.holo.client.models.WardenHornsFeatureRenderer;
 import org.agmas.holo.client.models.WardensHorns;
+import org.agmas.holo.client.render.PhoneHolder;
 import org.agmas.holo.client.render.StyleMeterHUD;
 import org.agmas.holo.client.screen.DuelComputerScreen;
 import org.agmas.holo.client.screen.TerminalChatScreen;
@@ -87,6 +91,7 @@ public class HoloClient implements ClientModInitializer {
 
     public static int hostHealth = 0;
     public static int power = 0;
+    public static boolean phoneCameraMode = false;
     public static int maxPower = 555;
     public static int playersInDuel = 0;
     public static String holoName = "";
@@ -270,7 +275,25 @@ public class HoloClient implements ClientModInitializer {
 
         List<String> angrierBattleDuelWarning = List.of("You can't use the terminal in a duel hologram.", "You CAN'T use the TERMINAL in a DUEL HOLOGRAM!", "STOP TRYING TO USE THE TERMINAL!!", "Are you stupid", "Fine. I'll let you use the terminal if you click the button 100 times in a row.");
 
+        FabricVeilRenderLevelStageEvent.EVENT.register((stage, levelRenderer, bufferSource, matrixStack, frustumMatrix, projectionMatrix, renderTick, deltaTracker, camera, frustum) -> {
+            if (stage == VeilRenderLevelStageEvent.Stage.AFTER_LEVEL) {
+                PhoneHolder.renderPhoneBuffer();
+            }
+        });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (client.player != null) {
+                if (client.player.isUsingItem() && client.player.getActiveItem().isOf(ModItems.PHONE)) {
+                    if (PhoneHolder.phoneState.equals(PhoneHolder.PhoneState.CAMERA)) {
+                        MinecraftClient.getInstance().mouse.lockCursor();
+                    }
+                    else if (MinecraftClient.getInstance().mouse.isCursorLocked()) {
+                        MinecraftClient.getInstance().mouse.unlockCursor();
+                    }
+                }
+                if (client.player.getMainHandStack().isOf(ModItems.PHONE) && !client.player.isUsingItem() && MinecraftClient.getInstance().currentScreen == null) {
+                    MinecraftClient.getInstance().mouse.lockCursor();
+                }
+            }
             if (BattleHologramComputer.openEditScreen) {
                 client.setScreen(new DuelComputerScreen(BattleHologramComputer.editingState));
                 BattleHologramComputer.openEditScreen = false;
@@ -307,12 +330,19 @@ public class HoloClient implements ClientModInitializer {
                         timesTriedToOpenTerminalAsABattleDuelHologram++;
                     }
                 }
-                while (keyBinding.wasPressed()) {
-                    PacketByteBuf data = PacketByteBufs.create();
-                    client.execute(() -> {
-                        ClientPlayNetworking.send(new SwapC2SPacket());
-                    });
+
+            }
+            while (keyBinding.wasPressed()) {
+                if (MinecraftClient.getInstance().player != null) {
+                    if (MinecraftClient.getInstance().player.getActiveItem().isOf(ModItems.PHONE)) {
+                        PhoneHolder.selectedHolo++;
+                        continue;
+                    }
                 }
+                PacketByteBuf data = PacketByteBufs.create();
+                client.execute(() -> {
+                    ClientPlayNetworking.send(new SwapC2SPacket());
+                });
             }
         });
     }
@@ -366,4 +396,5 @@ public class HoloClient implements ClientModInitializer {
         bufferBuilder.vertex(matrix4f, x + 16, y, 0).texture(u2, v1).color(color).light(-1);
         return bufferBuilder;
     }
+
 }

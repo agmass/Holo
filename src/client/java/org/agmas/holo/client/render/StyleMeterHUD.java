@@ -30,6 +30,7 @@ public class StyleMeterHUD {
             boingoingoingoing = 1;
         }
         RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
 
         context.getMatrices().push();
         context.getMatrices().multiply(RotationAxis.POSITIVE_Y.rotationDegrees(10));

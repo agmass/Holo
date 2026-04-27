@@ -39,6 +39,7 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
     public World computerWorld = null;
     public int power = 0;
     public String holoName = "";
+    public UUID ownerUUID = null;
     public ArrayList<HoloModifiers> activeModifiers = new ArrayList<>();
     public ArrayList<UUID> playersInFight = new ArrayList<>();
 
@@ -66,7 +67,13 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
     }
 
     public void serverTick() {
-        if (!hologramType.equals(HologramType.BATTLE_DUEL)) battleUsesNormalSaturation = false;
+        if (!hologramType.equals(HologramType.BATTLE_DUEL)) {
+            battleUsesNormalSaturation = false;
+            playersInFight.clear();
+        }
+        if (player instanceof FakestPlayer fp) {
+            ownerUUID = fp.ownerUUID;
+        }
         sync();
     }
 
@@ -81,6 +88,8 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
         tag.putInt("computerPosX", computerPos.getX());
         tag.putInt("computerPosY", computerPos.getY());
         tag.putInt("computerPosZ", computerPos.getZ());
+        if (ownerUUID != null)
+            tag.putUuid("ownerUUID", ownerUUID);
         if (computerWorld == null) computerWorld = player.getWorld();
         tag.putString("computerWorld", computerWorld.getRegistryKey().getValue().toString());
         List<Integer> intList = new ArrayList<>();
@@ -104,6 +113,9 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
         hologramType = HologramType.values()[tag.getInt("type")];
         totalHolosCreated = tag.getInt("totalHolosCreated");
         lastComputerMaxPower = tag.getInt("lastComputerMaxPower");
+        if (tag.contains("ownerUUID")) {
+            ownerUUID = tag.getUuid("ownerUUID");
+        }
         if (player instanceof ServerPlayerEntity spe && tag.contains("computerWorld")) {
             computerWorld = spe.getServer().getWorld(RegistryKey.of(RegistryKeys.WORLD, Identifier.of(tag.getString("computerWorld"))));
         }

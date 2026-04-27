@@ -334,6 +334,7 @@ public class Holo implements ModInitializer {
                         for (PlayerEntity entity : fight) {
                             HoloPlayerComponent.KEY.get(playerEntity).playersInFight.add(entity.getUuid());
                         }
+                        HoloPlayerComponent.KEY.get(playerEntity).sync();
                     }
                     entry.getValue().clear();
                 }
@@ -371,8 +372,8 @@ public class Holo implements ModInitializer {
                     StyleMeterComponent.KEY.get(player).consecutiveHits = 0;
                     if (player.getUuidAsString().equals("5de5299b-83c1-4fe4-9c47-b8aae4fed6b1")) {
                         if (HoloPlayerComponent.KEY.get(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
-                            player.getWorld().playSound((Entity)null,player.getBlockPos(),whatsappdanger,SoundCategory.MASTER,1f,(livingEntity.getRandom().nextFloat()*0.3f)+0.9f);
                             if (damageSource.getAttacker() != null && damageSource.getAttacker() instanceof PlayerEntity player2) {
+                                player.getWorld().playSound((Entity)null,player.getBlockPos(),whatsappdanger,SoundCategory.MASTER,1f,(livingEntity.getRandom().nextFloat()*0.3f)+0.9f);
                                 StyleMeterComponent.KEY.get(player2).addStylePoints(StyleMeterComponent.StyleReason.WHATSAPP_DANGER);
                             }
 
@@ -537,7 +538,10 @@ public class Holo implements ModInitializer {
 
     public static void tinyPlayerClone(PlayerEntity original, ServerPlayerEntity clone) {
         clone.getAttributes().removeModifiers(getScoutAttributes(clone));
-            if (original.getHealth() > 0 && !(HoloPlayerComponent.KEY.get(original).loreAccurate || HoloPlayerComponent.KEY.get(clone).loreAccurate)) {
+        boolean shouldCopy = original.getHealth() > 0;
+        shouldCopy = shouldCopy && !(HoloPlayerComponent.KEY.get(original).loreAccurate || HoloPlayerComponent.KEY.get(clone).loreAccurate);
+        shouldCopy = shouldCopy || (original.getHealth() > 0 && (HoloPlayerComponent.KEY.get(original).hologramType.equals(HologramType.BATTLE_DUEL) || HoloPlayerComponent.KEY.get(clone).hologramType.equals(HologramType.BATTLE_DUEL)));
+        if (shouldCopy) {
             clone.getInventory().clone(original.getInventory());
             clone.getInventory().offHand.set(0, original.getOffHandStack());
         }

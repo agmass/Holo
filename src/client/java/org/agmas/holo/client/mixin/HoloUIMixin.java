@@ -74,7 +74,8 @@ public abstract class HoloUIMixin {
                 for (UUID uuid : HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).playersInFight) {
                     i++;
                     PlayerEntity otherPlayer = MinecraftClient.getInstance().world.getPlayerByUuid(uuid);
-                    HoloClient.drawPlayerHead(otherPlayer, MinecraftClient.getInstance().getNetworkHandler().getPlayerListEntry(uuid).getSkinTextures().texture(), context, context.getScaledWindowWidth() - ((18)*i), drawY);
+                    if (otherPlayer != null)
+                        HoloClient.drawPlayerHead(otherPlayer, MinecraftClient.getInstance().getNetworkHandler().getPlayerListEntry(uuid).getSkinTextures().texture(), context, context.getScaledWindowWidth() - ((18)*i), drawY);
                 }
                lines = List.of(line4, Text.of(" "), line2, line1);
             } else {

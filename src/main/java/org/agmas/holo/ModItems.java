@@ -5,6 +5,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 import org.agmas.holo.item.HologramSpawnEgg;
+import org.agmas.holo.item.PhoneItem;
 import org.agmas.holo.util.HologramType;
 
 public class ModItems {
@@ -25,6 +26,10 @@ public class ModItems {
     public static final Item SCOUT_HOLOGRAM_SPAWN_EGG = register(
             new HologramSpawnEgg(new Item.Settings().fireproof(), HologramType.SCOUT),
             "scout_hologram_spawn_egg"
+    );
+    public static final Item PHONE = register(
+            new PhoneItem(new Item.Settings()),
+            "phone"
     );
     //public static final Item ENDER_HOLOGRAM_SPAWN_EGG = register(
     //        new HologramSpawnEgg(new Item.Settings().fireproof(), HologramType.ENDER),

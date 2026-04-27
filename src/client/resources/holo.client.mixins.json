@@ -10,7 +10,10 @@
     "HoloSkinMixin",
     "HoloUIMixin",
     "TerminalInputSuggestorMixin",
-    "UnfocusChatInTerminal"
+    "UnfocusChatInTerminal",
+    "phone.PhoneNoCrosshairMixin",
+    "phone.PhoneNoSlowdownMixin",
+    "phone.PhonePoseMixin"
   ],
   "injectors": {
     "defaultRequire": 1

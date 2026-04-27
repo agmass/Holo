@@ -1,0 +1,8 @@
+{
+  "vertex": "holo:phone",
+  "fragment": "holo:phone",
+  "uniforms": [
+  ],
+  "textures": {
+  }
+}
