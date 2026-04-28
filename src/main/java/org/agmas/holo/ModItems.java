@@ -27,6 +27,10 @@ public class ModItems {
             new HologramSpawnEgg(new Item.Settings().fireproof(), HologramType.SCOUT),
             "scout_hologram_spawn_egg"
     );
+    public static final Item SEETHROUGH_PHONE = register(
+            new PhoneItem(new Item.Settings()),
+            "seethrough_phone"
+    );
     public static final Item PHONE = register(
             new PhoneItem(new Item.Settings()),
             "phone"

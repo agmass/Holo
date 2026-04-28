@@ -22,12 +22,15 @@ import net.fabricmc.fabric.api.client.rendering.v1.EntityModelLayerRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.LivingEntityFeatureRendererRegistrationCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
 import net.irisshaders.iris.api.v0.IrisApi;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.CubeMapRenderer;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.RotatingCubeMapRenderer;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.option.KeyBinding;
@@ -91,7 +94,6 @@ public class HoloClient implements ClientModInitializer {
 
     public static int hostHealth = 0;
     public static int power = 0;
-    public static boolean phoneCameraMode = false;
     public static int maxPower = 555;
     public static int playersInDuel = 0;
     public static String holoName = "";
@@ -104,9 +106,12 @@ public class HoloClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        // This mod is a mess
+
         BlockEntityRendererFactories.register(ModEntities.HOLOGRAM_CONTROLLER_BLOCK_ENTITY, HologramControllerBlockEntityRenderer::new);
 
         EntityModelLayerRegistry.registerModelLayer(WardensHorns.MODEL_LAYER, WardensHorns::getTexturedModelData);
+
         LivingEntityFeatureRendererRegistrationCallback.EVENT.register(((entityType, entityRenderer, registrationHelper, context) -> {
             if (entityType.equals(EntityType.PLAYER)) {
                 registrationHelper.register(new WardenHornsFeatureRenderer((FeatureRendererContext<AbstractClientPlayerEntity, PlayerEntityModel<AbstractClientPlayerEntity>>) entityRenderer, context.getModelLoader()));
@@ -280,18 +285,18 @@ public class HoloClient implements ClientModInitializer {
                 PhoneHolder.renderPhoneBuffer();
             }
         });
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player != null) {
-                if (client.player.isUsingItem() && client.player.getActiveItem().isOf(ModItems.PHONE)) {
-                    if (PhoneHolder.phoneState.equals(PhoneHolder.PhoneState.CAMERA)) {
-                        MinecraftClient.getInstance().mouse.lockCursor();
+                if (!(client.player.isUsingItem() && client.player.getActiveItem().isOf(ModItems.PHONE))) {
+                    if (PhoneHolder.phoneState != PhoneHolder.PhoneState.HOME) {
+                        PhoneHolder.phoneState = PhoneHolder.PhoneState.HOME;
+                        PhoneHolder.PANORAMA = new CubeMapRenderer(Identifier.of("holo", "textures/gui/title/background/" + new Random().nextInt(PhoneHolder.panoramas) + "/panorama"));
+                        PhoneHolder.ROTATING_PANORAMA = new RotatingCubeMapRenderer(PhoneHolder.PANORAMA);
                     }
-                    else if (MinecraftClient.getInstance().mouse.isCursorLocked()) {
-                        MinecraftClient.getInstance().mouse.unlockCursor();
-                    }
-                }
-                if (client.player.getMainHandStack().isOf(ModItems.PHONE) && !client.player.isUsingItem() && MinecraftClient.getInstance().currentScreen == null) {
-                    MinecraftClient.getInstance().mouse.lockCursor();
+                    PhoneHolder.appTransition = 1;
+                    PhoneHolder.rotationTransition = 1;
+                    PhoneHolder.battery = client.player.getRandom().nextBetween(1,100);
                 }
             }
             if (BattleHologramComputer.openEditScreen) {

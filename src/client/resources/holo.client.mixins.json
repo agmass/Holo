@@ -11,11 +11,16 @@
     "HoloUIMixin",
     "TerminalInputSuggestorMixin",
     "UnfocusChatInTerminal",
+    "phone.IncorrectPanoramaMixin",
     "phone.PhoneNoCrosshairMixin",
     "phone.PhoneNoSlowdownMixin",
-    "phone.PhonePoseMixin"
+    "phone.PhonePoseMixin",
+    "phone.SwingHandWhenMousedPresssedMixin"
   ],
   "injectors": {
     "defaultRequire": 1
-  }
+  },
+  "mixins": [
+    "phone.PhoneLockMouseMixin"
+  ]
 }

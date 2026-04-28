@@ -4,6 +4,7 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.tooltip.TooltipType;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
@@ -15,6 +16,8 @@ import org.agmas.holo.state.ClonePlayerComponent;
 import org.agmas.holo.state.HoloPlayerComponent;
 import org.agmas.holo.util.FakestPlayer;
 import org.agmas.holo.util.HologramType;
+
+import java.util.List;
 
 public class PhoneItem extends Item {
 
@@ -36,5 +39,11 @@ public class PhoneItem extends Item {
     @Override
     public UseAction getUseAction(ItemStack stack) {
         return UseAction.NONE;
+    }
+
+    @Override
+    public void appendTooltip(ItemStack stack, TooltipContext context, List<Text> tooltip, TooltipType type) {
+        tooltip.add(Text.literal("Use in off-hand to quickswap to cameras.").formatted(Formatting.GRAY));
+        super.appendTooltip(stack, context, tooltip, type);
     }
 }

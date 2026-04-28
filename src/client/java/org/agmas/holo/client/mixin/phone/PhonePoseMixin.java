@@ -32,16 +32,13 @@ public abstract class PhonePoseMixin {
         if (player.getItemUseTime() > 0 && item.isOf(ModItems.PHONE)) {
             PhoneHolder.transform(player,tickDelta,pitch,hand,swingProgress,item,equipProgress,matrices,vertexConsumers,light);
             matrices.push();
-            if (!HoloClient.phoneCameraMode) {
-                matrices.translate(0.1f,0,0);
-            }
-            renderArmHoldingItem(matrices, vertexConsumers, light, 0f, 0f, Arm.LEFT);
+            matrices.translate(0.1f * (1-PhoneHolder.rotationTransition),0,0);
+
+            renderArmHoldingItem(matrices, vertexConsumers, light, 0f, player.getMainArm().equals(Arm.LEFT) ? swingProgress : 0f, Arm.LEFT);
             matrices.pop();
             matrices.push();
-            if (!HoloClient.phoneCameraMode) {
-                matrices.translate(-0.1f,0,0);
-            }
-            renderArmHoldingItem(matrices, vertexConsumers, light, 0f, 0f, Arm.RIGHT);
+            matrices.translate(-0.1f * (1-PhoneHolder.rotationTransition),0,0);
+            renderArmHoldingItem(matrices, vertexConsumers, light, 0f, player.getMainArm().equals(Arm.RIGHT) ? swingProgress : 0f, Arm.RIGHT);
             matrices.pop();
             PhoneHolder.render(itemRenderer,player,tickDelta,pitch,hand,swingProgress,item,equipProgress,matrices,vertexConsumers,light);
             matrices.pop();

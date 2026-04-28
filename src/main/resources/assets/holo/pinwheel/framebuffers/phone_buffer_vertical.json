@@ -1,0 +1,21 @@
+{
+  "width": "720",
+  "height": "1280",
+  "autoClear": true,
+  "color_buffers": [
+    {
+      "type": "render_buffer",
+      "format": "RGBA8",
+      "levels": 0,
+      "linear": true,
+      "name": "PhoneBuffer"
+    }
+  ],
+  "depth":  {
+    "type": "render_buffer",
+    "format": "DEPTH_COMPONENT",
+    "levels": 1,
+    "linear": true,
+    "name": "PhoneDepthBuffer"
+  }
+}
