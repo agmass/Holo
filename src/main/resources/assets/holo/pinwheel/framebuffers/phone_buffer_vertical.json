@@ -7,7 +7,7 @@
       "type": "render_buffer",
       "format": "RGBA8",
       "levels": 0,
-      "linear": true,
+      "linear": false,
       "name": "PhoneBuffer"
     }
   ],
@@ -15,7 +15,7 @@
     "type": "render_buffer",
     "format": "DEPTH_COMPONENT",
     "levels": 1,
-    "linear": true,
+    "linear": false,
     "name": "PhoneDepthBuffer"
   }
 }

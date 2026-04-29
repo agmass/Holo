@@ -12,6 +12,7 @@
     "TerminalInputSuggestorMixin",
     "UnfocusChatInTerminal",
     "phone.IncorrectPanoramaMixin",
+    "phone.LessViewBobbingMixin",
     "phone.PhoneNoCrosshairMixin",
     "phone.PhoneNoSlowdownMixin",
     "phone.PhonePoseMixin",
@@ -21,6 +22,7 @@
     "defaultRequire": 1
   },
   "mixins": [
-    "phone.PhoneLockMouseMixin"
+    "phone.PhoneLockMouseMixin",
+    "veilWatermediaCompat.DisableVeilDynamicBufferManagerWhenRenderingWaterMediaVideoMixin"
   ]
 }

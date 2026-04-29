@@ -10,6 +10,7 @@ import foundry.veil.api.client.render.rendertype.VeilRenderType;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
 import foundry.veil.api.event.VeilRenderLevelStageEvent;
 import foundry.veil.fabric.event.FabricVeilRenderLevelStageEvent;
+import foundry.veil.fabric.event.FabricVeilRendererAvailableEvent;
 import foundry.veil.platform.VeilEventPlatform;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.serializer.JanksonConfigSerializer;
@@ -168,7 +169,6 @@ public class HoloClient implements ClientModInitializer {
             HoloConfig config = AutoConfig.getConfigHolder(HoloConfig.class).getConfig();
             if (config.useVeilLights) {
                 VeilRenderSystem.renderer().enableBuffers(Identifier.of(Holo.MOD_ID, "holo_light_buffer"), DynamicBufferType.LIGHT_COLOR, DynamicBufferType.LIGHT_UV, DynamicBufferType.ALBEDO, DynamicBufferType.NORMAL);
-
                 if (clientLight == null) {
                     PointLightData pointLightData = new PointLightData();
                     clientLight = VeilRenderSystem.renderer().getLightRenderer().addLight(pointLightData);
@@ -281,10 +281,12 @@ public class HoloClient implements ClientModInitializer {
         List<String> angrierBattleDuelWarning = List.of("You can't use the terminal in a duel hologram.", "You CAN'T use the TERMINAL in a DUEL HOLOGRAM!", "STOP TRYING TO USE THE TERMINAL!!", "Are you stupid", "Fine. I'll let you use the terminal if you click the button 100 times in a row.");
 
         FabricVeilRenderLevelStageEvent.EVENT.register((stage, levelRenderer, bufferSource, matrixStack, frustumMatrix, projectionMatrix, renderTick, deltaTracker, camera, frustum) -> {
+
             if (stage == VeilRenderLevelStageEvent.Stage.AFTER_LEVEL) {
                 PhoneHolder.renderPhoneBuffer();
             }
         });
+
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.player != null) {
