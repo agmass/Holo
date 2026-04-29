@@ -22,7 +22,6 @@
     "defaultRequire": 1
   },
   "mixins": [
-    "phone.PhoneLockMouseMixin",
-    "veilWatermediaCompat.DisableVeilDynamicBufferManagerWhenRenderingWaterMediaVideoMixin"
+    "phone.PhoneLockMouseMixin"
   ]
 }

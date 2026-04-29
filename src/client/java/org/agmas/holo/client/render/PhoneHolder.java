@@ -121,7 +121,14 @@ public class PhoneHolder {
                     MRL minetokMRL = MediaAPI.getMRL("https://youtu.be/ZVgHPSyEIqk");
                     minetokMRL.await(30000);
                     minetokPlayer = minetokMRL.createPlayer(
-                            new GLEngine.Builder(Thread.currentThread(),MinecraftClient.getInstance()).build(), ALEngine.buildDefault());
+                            new GLEngine.Builder(Thread.currentThread(),MinecraftClient.getInstance())
+                                    .setGenTexture(GlStateManager::_genTexture)
+                                    .setBindTexture((a,b)->{
+                                        RenderSystem.bindTexture(b);
+                                    })
+                                    .setDelTexture(RenderSystem::deleteTexture)
+                                    .setPixelStore(RenderSystem::pixelStore)
+                                    .setTexParameter(RenderSystem::texParameter).build(), ALEngine.buildDefault());
                     minetokPlayer.start();
                 });
             }
