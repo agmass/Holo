@@ -5,10 +5,12 @@
   "compatibilityLevel": "JAVA_17",
   "client": [
     "AlwaysOutlineSilentMixin",
+    "CameraHoloNoBodyMixin",
     "EntityRenderDispatcherMixin",
     "FovFixerMixin",
     "HoloSkinMixin",
     "HoloUIMixin",
+    "MinecraftClientAccessor",
     "TerminalInputSuggestorMixin",
     "UnfocusChatInTerminal",
     "phone.IncorrectPanoramaMixin",
@@ -22,6 +24,8 @@
     "defaultRequire": 1
   },
   "mixins": [
+    "AllowYoutubeMixin",
+    "TurnOffGLEngineMixin",
     "phone.PhoneLockMouseMixin"
   ]
 }

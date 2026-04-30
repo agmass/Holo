@@ -5,7 +5,8 @@
       "holo:hologram_spawn_egg",
       "holo:battle_hologram_spawn_egg",
       "holo:silent_hologram_spawn_egg",
-      "holo:scout_hologram_spawn_egg"
+      "holo:scout_hologram_spawn_egg",
+      "holo:camera_hologram_spawn_egg"
     ]
   },
   "criteria": {

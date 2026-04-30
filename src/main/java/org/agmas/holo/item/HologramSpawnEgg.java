@@ -27,7 +27,11 @@ public class HologramSpawnEgg extends Item {
     public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
         if (!world.isClient) {
             if (!HoloPlayerComponent.KEY.get(user).loreAccurate) {
-                if (ClonePlayerComponent.KEY.get(user).clones.size() >= 4) {
+                int totalNonCamHolos = 0;
+                for (FakestPlayer clone : ClonePlayerComponent.KEY.get(user).clones) {
+                    if (clone.isHologram && !clone.type.equals(HologramType.CAMERA)) totalNonCamHolos++;
+                }
+                if (totalNonCamHolos >= 4 && type != HologramType.CAMERA) {
                     user.sendMessage(Text.literal("Too many clones!").formatted(Formatting.RED));
                     return super.use(world, user, hand);
                 }

@@ -5,6 +5,7 @@ import com.mojang.authlib.GameProfile;
 import net.fabricmc.fabric.impl.event.interaction.FakePlayerNetworkHandler;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
+import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
@@ -16,6 +17,7 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.agmas.holo.Holo;
+import org.agmas.holo.ModItems;
 import org.agmas.holo.state.ClonePlayerComponent;
 import org.agmas.holo.state.HoloPlayerComponent;
 import org.jetbrains.annotations.Nullable;
@@ -42,8 +44,19 @@ public class FakestPlayer extends ServerPlayerEntity {
     }
 
     @Override
+    protected double getGravity() {
+        return type == HologramType.CAMERA ? 0 : super.getGravity();
+    }
+
+    @Override
+    public boolean hasNoGravity() {
+        return type == HologramType.CAMERA;
+    }
+
+    @Override
     public void tick() {
-        tickMovement();
+        if (type != HologramType.CAMERA)
+            tickMovement();
         ServerPlayerEntity p = getServer().getPlayerManager().getPlayer(ownerUUID);
         if (p != null) {
             if (HoloPlayerComponent.KEY.get(p).loreAccurate) {
@@ -52,6 +65,8 @@ public class FakestPlayer extends ServerPlayerEntity {
         }
         super.tick();
     }
+
+
 
     @Override
     public Text getDisplayName() {
@@ -94,9 +109,15 @@ public class FakestPlayer extends ServerPlayerEntity {
 
     @Override
     public NbtCompound writeNbt(NbtCompound nbt) {
+        nbt.putString("HoloName", holoName);
         return super.writeNbt(nbt);
     }
 
+    @Override
+    public void readNbt(NbtCompound nbt) {
+        holoName = nbt.getString("HoloName");
+        super.readNbt(nbt);
+    }
 
     @Override
     public void writeCustomDataToNbt(NbtCompound nbt) {

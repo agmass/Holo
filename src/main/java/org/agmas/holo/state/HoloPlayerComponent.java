@@ -30,13 +30,14 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
     private final PlayerEntity player;
 
     public boolean inHoloMode = false;
+    public boolean publicCamera = false;
     public boolean loreAccurate = false;
     public boolean battleUsesNormalSaturation = false;
     public HologramType hologramType = HologramType.NORMAL;
     public int totalHolosCreated = 0;
     public int lastComputerMaxPower = 0;
     public BlockPos computerPos = new BlockPos(0,0,0);
-    public World computerWorld = null;
+    public RegistryKey<World> computerWorld = null;
     public int power = 0;
     public String holoName = "";
     public UUID ownerUUID = null;
@@ -59,7 +60,7 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
         lastComputerMaxPower = 0;
         power = 0;
         holoName = "";
-        computerWorld = player.getServer().getOverworld();
+        computerWorld = player.getServer().getOverworld().getRegistryKey();
         computerPos = new BlockPos(0,0,0);
         activeModifiers = new ArrayList<>();
         playersInFight = new ArrayList<>();
@@ -73,6 +74,7 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
         }
         if (player instanceof FakestPlayer fp) {
             ownerUUID = fp.ownerUUID;
+            hologramType = fp.type;
         }
         sync();
     }
@@ -80,6 +82,7 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
     public void writeToNbt(@NotNull NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup) {
         tag.putBoolean("inHoloMode", inHoloMode);
         tag.putBoolean("loreMode", loreAccurate);
+        tag.putBoolean("publicCamera", publicCamera);
         tag.putBoolean("battleUsesNormalSaturation", battleUsesNormalSaturation);
         tag.putString("holoName", holoName);
         tag.putInt("type", hologramType.ordinal());
@@ -90,8 +93,8 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
         tag.putInt("computerPosZ", computerPos.getZ());
         if (ownerUUID != null)
             tag.putUuid("ownerUUID", ownerUUID);
-        if (computerWorld == null) computerWorld = player.getWorld();
-        tag.putString("computerWorld", computerWorld.getRegistryKey().getValue().toString());
+        if (computerWorld == null) computerWorld = player.getWorld().getRegistryKey();
+        tag.putString("computerWorld", computerWorld.getValue().toString());
         List<Integer> intList = new ArrayList<>();
         for (HoloModifiers activeModifier : activeModifiers) {
             intList.add(activeModifier.ordinal());
@@ -108,6 +111,7 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
     public void readFromNbt(@NotNull NbtCompound tag, RegistryWrapper.WrapperLookup registryLookup) {
         inHoloMode = tag.getBoolean("inHoloMode");
         loreAccurate = tag.getBoolean("loreMode");
+        publicCamera = tag.getBoolean("publicCamera");
         battleUsesNormalSaturation = tag.getBoolean("battleUsesNormalSaturation");
         holoName = tag.getString("holoName");
         hologramType = HologramType.values()[tag.getInt("type")];
@@ -117,7 +121,7 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
             ownerUUID = tag.getUuid("ownerUUID");
         }
         if (player instanceof ServerPlayerEntity spe && tag.contains("computerWorld")) {
-            computerWorld = spe.getServer().getWorld(RegistryKey.of(RegistryKeys.WORLD, Identifier.of(tag.getString("computerWorld"))));
+            computerWorld = RegistryKey.of(RegistryKeys.WORLD, Identifier.of(tag.getString("computerWorld")));
         }
         computerPos = new BlockPos(tag.getInt("computerPosX"),tag.getInt("computerPosY"),tag.getInt("computerPosZ"));
         for (int modifiers : tag.getIntArray("activeModifiers")) {

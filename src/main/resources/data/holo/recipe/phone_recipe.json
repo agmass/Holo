@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    " w ",
+    " h ",
+    " w "
+  ],
+  "key": {
+    "w": {
+      "item": "stone"
+    },
+    "h": {
+      "item": "glass_pane"
+    }
+  },
+  "result": {
+    "id": "holo:phone"
+  }
+}

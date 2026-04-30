@@ -175,6 +175,7 @@ public class Holo implements ModInitializer {
             t.add(ModItems.BATTLE_HOLOGRAM_SPAWN_EGG);
             t.add(ModItems.SILENT_HOLOGRAM_SPAWN_EGG);
             t.add(ModItems.SCOUT_HOLOGRAM_SPAWN_EGG);
+            t.add(ModItems.CAMERA_HOLOGRAM_SPAWN_EGG);
         });
 
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.FUNCTIONAL).register((t)->{
@@ -208,18 +209,17 @@ public class Holo implements ModInitializer {
         ServerPlayNetworking.registerGlobalReceiver(Holo.REQUEST_TERMINAL_AUTOCOMPLETE, (payload, context) -> {
             ArrayList<String> commands = new ArrayList<>();
             for (TerminalCommand value : TerminalCommandParser.nameAndCommands.values()) {
-                commands.addAll(value.autoCompletion(context.player()));
+                if (HoloPlayerComponent.KEY.get(context.player()).inHoloMode || value.usableAsHuman())
+                    commands.addAll(value.autoCompletion(context.player()));
             }
             ServerPlayNetworking.send(context.player(), new SendTerminalAutocompleteS2CPacket(commands));
         });
         ServerPlayNetworking.registerGlobalReceiver(Holo.TERMINAL_COMMAND, (payload, context) -> {
             String command = payload.command();
-            if (HoloPlayerComponent.KEY.get(context.player()).inHoloMode) {
-                if (HoloPlayerComponent.KEY.get(context.player()).hologramType != HologramType.BATTLE_DUEL) {
-                    context.player().sendMessage(TerminalCommandParser.findAndRunCommand(command, context.player()));
-                } else{
-                    context.player().sendMessage(Text.literal("You can't use the terminal in a duel!").formatted(Formatting.RED));
-                }
+            if (HoloPlayerComponent.KEY.get(context.player()).hologramType != HologramType.BATTLE_DUEL) {
+                context.player().sendMessage(TerminalCommandParser.findAndRunCommand(command, context.player()));
+            } else{
+                context.player().sendMessage(Text.literal("You can't use the terminal in a duel!").formatted(Formatting.RED));
             }
         });
         ServerPlayNetworking.registerGlobalReceiver(Holo.SWAP_PACKET, (payload, context) -> {
@@ -276,7 +276,9 @@ public class Holo implements ModInitializer {
                 }
                 return fight.isEmpty();
             });
-            for (Map.Entry<BattleHologramComputerEntry, ArrayList<PlayerEntity>> entry : playersWaitingForBattle.entrySet()) {
+            Iterator<Map.Entry<BattleHologramComputerEntry, ArrayList<PlayerEntity>>> iterator = playersWaitingForBattle.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry<BattleHologramComputerEntry, ArrayList<PlayerEntity>> entry = iterator.next();
                 entry.getValue().removeIf((p)->{
                     return p.getWorld() != entry.getKey().world || !p.isPartOfGame();
                 });
@@ -296,12 +298,12 @@ public class Holo implements ModInitializer {
                         HoloPlayerComponent.KEY.get(player).battleUsesNormalSaturation = !entry.getKey().hologramOptions.holoSaturation;
                         tinyPlayerClone((ServerPlayerEntity) player, player1);
                         tinyPlayerClone(player2, (ServerPlayerEntity) player);
-                        player.requestTeleport(entry.getKey().pos.getX(),entry.getKey().pos.getY(),entry.getKey().pos.getZ());
+                        player.requestTeleport(entry.getKey().pos.getX(), entry.getKey().pos.getY(), entry.getKey().pos.getZ());
                         ClonePlayerComponent.KEY.get(player).clones.remove(player2);
                         queuedHoloRemovals.add(player2);
                         HoloModeUpdates.sendHoloModeUpdate(player);
                         fight.add(player);
-                        for (int i = 0; i <  player.getInventory().size(); i++) {
+                        for (int i = 0; i < player.getInventory().size(); i++) {
                             if (entry.getKey().hologramOptions.noEnchantments) {
                                 ItemStack stack = player1.getInventory().getStack(i).copy();
                                 stack.remove(DataComponentTypes.ENCHANTMENTS);
@@ -318,14 +320,14 @@ public class Holo implements ModInitializer {
                         }
 
                         WorldBorder worldBorder = new WorldBorder();
-                        worldBorder.setCenter(entry.getKey().pos.getX()*entry.getKey().world.getDimension().coordinateScale(), entry.getKey().pos.getZ()*entry.getKey().world.getDimension().coordinateScale());
+                        worldBorder.setCenter(entry.getKey().pos.getX() * entry.getKey().world.getDimension().coordinateScale(), entry.getKey().pos.getZ() * entry.getKey().world.getDimension().coordinateScale());
                         worldBorder.setSize(entry.getKey().hologramOptions.worldBorderSize);
                         if (player instanceof ServerPlayerEntity spe) {
                             if (entry.getKey().hologramOptions.worldBorderSize == 0) {
                                 spe.networkHandler.sendPacket(new WorldBorderCenterChangedS2CPacket(worldBorder));
                                 spe.networkHandler.sendPacket(new WorldBorderSizeChangedS2CPacket(worldBorder));
                             }
-                            spe.timeUntilRegen = 20*5;
+                            spe.timeUntilRegen = 20 * 5;
                         }
                     }
                     fights.add(fight);
@@ -337,14 +339,28 @@ public class Holo implements ModInitializer {
                         HoloPlayerComponent.KEY.get(playerEntity).sync();
                     }
                     entry.getValue().clear();
+                } else if (entry.getValue().isEmpty()) {
+                    iterator.remove();
+                    continue;
                 }
                 for (PlayerEntity player : entry.getValue()) {
-                    player.sendMessage(Text.literal("Waiting for opponent.. (" + entry.getValue().size() + "/" + entry.getKey().count + ")").formatted(Formatting.GOLD),true);
+                    player.sendMessage(Text.literal("Waiting for opponent.. (" + entry.getValue().size() + "/" + entry.getKey().count + ")").formatted(Formatting.GOLD), true);
                 }
             }
         }));
         ServerLivingEntityEvents.AFTER_DEATH.register((livingEntity,damageSource)->{
 
+            if (livingEntity instanceof PlayerEntity playerEntity) {
+                if (HoloPlayerComponent.KEY.get(playerEntity).inHoloMode && !HoloPlayerComponent.KEY.get(playerEntity).hologramType.equals(HologramType.BATTLE_DUEL)) {
+                    switch (HoloPlayerComponent.KEY.get(playerEntity).hologramType) {
+                        case BATTLE -> playerEntity.dropItem(ModItems.BATTLE_HOLOGRAM_SPAWN_EGG);
+                        case CAMERA -> playerEntity.dropItem(ModItems.CAMERA_HOLOGRAM_SPAWN_EGG);
+                        case SCOUT -> playerEntity.dropItem(ModItems.SCOUT_HOLOGRAM_SPAWN_EGG);
+                        case SILENT -> playerEntity.dropItem(ModItems.SILENT_HOLOGRAM_SPAWN_EGG);
+                        default -> playerEntity.dropItem(ModItems.HOLOGRAM_SPAWN_EGG);
+                    }
+                }
+            }
             // Non-direct damage types
             if (livingEntity.getAttacker() != null && livingEntity.getAttacker() instanceof PlayerEntity player) {
                 if (damageSource.isOf(DamageTypes.PLAYER_EXPLOSION) || damageSource.isOf(DamageTypes.EXPLOSION)) {
@@ -624,9 +640,9 @@ public class Holo implements ModInitializer {
 
     public static void turnOffComputers(PlayerEntity player) {
         if (HoloPlayerComponent.KEY.get(player).computerPos != null && HoloPlayerComponent.KEY.get(player).computerWorld != null) {
-            BlockState state = HoloPlayerComponent.KEY.get(player).computerWorld.getBlockState(HoloPlayerComponent.KEY.get(player).computerPos);
+            BlockState state = player.getServer().getWorld(HoloPlayerComponent.KEY.get(player).computerWorld).getBlockState(HoloPlayerComponent.KEY.get(player).computerPos);
             if (state.isOf(ModBlocks.HOLOGRAM_CONTROLLER)) {
-                HoloPlayerComponent.KEY.get(player).computerWorld.setBlockState(HoloPlayerComponent.KEY.get(player).computerPos, state.with(HologramController.USING, false));
+                player.getServer().getWorld(HoloPlayerComponent.KEY.get(player).computerWorld).setBlockState(HoloPlayerComponent.KEY.get(player).computerPos, state.with(HologramController.USING, false));
             }
         }
     }

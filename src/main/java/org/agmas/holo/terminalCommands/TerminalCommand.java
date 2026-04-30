@@ -13,4 +13,7 @@ public class TerminalCommand {
     public Text run(String cmd, ServerPlayerEntity player) {
         return Text.literal("Command not registered.").formatted(Formatting.RED);
     }
+    public boolean usableAsHuman() {
+        return false;
+    }
 }

@@ -1,0 +1,6 @@
+{
+	"parent": "minecraft:item/generated",
+	"textures": {
+		"layer0": "holo:item/camera_hologram_spawn_egg"
+	}
+}

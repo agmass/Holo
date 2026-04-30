@@ -77,6 +77,7 @@ public class HoloLightRenderer extends FeatureRenderer<AbstractClientPlayerEntit
                 case SILENT -> color = HoloClient.SILENT_HOLO_COLOR;
                 case BATTLE, BATTLE_DUEL -> color = HoloClient.BATTLE_HOLO_COLOR;
                 case SCOUT -> color = HoloClient.SCOUT_HOLO_COLOR;
+                case CAMERA -> color = HoloClient.CAMERA_HOLO_COLOR;
                 default -> color = HoloClient.HOLO_COLOR;
             }
             lightHandle.getLightData().setColor(color.getRGB());

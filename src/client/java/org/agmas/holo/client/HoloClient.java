@@ -4,13 +4,18 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import foundry.veil.Veil;
 import foundry.veil.api.client.render.VeilRenderSystem;
 import foundry.veil.api.client.render.dynamicbuffer.DynamicBufferType;
+import foundry.veil.api.client.render.framebuffer.AdvancedFbo;
 import foundry.veil.api.client.render.light.data.PointLightData;
 import foundry.veil.api.client.render.light.renderer.LightRenderHandle;
 import foundry.veil.api.client.render.rendertype.VeilRenderType;
 import foundry.veil.api.client.render.shader.program.ShaderProgram;
+import foundry.veil.api.compat.FlashbackCompat;
+import foundry.veil.api.compat.SodiumCompat;
 import foundry.veil.api.event.VeilRenderLevelStageEvent;
 import foundry.veil.fabric.event.FabricVeilRenderLevelStageEvent;
 import foundry.veil.fabric.event.FabricVeilRendererAvailableEvent;
+import foundry.veil.impl.client.render.perspective.FlashbackAccess;
+import foundry.veil.impl.client.render.perspective.IrisPipelineAccess;
 import foundry.veil.platform.VeilEventPlatform;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.serializer.JanksonConfigSerializer;
@@ -74,6 +79,10 @@ import org.agmas.holo.util.HologramType;
 import org.agmas.holo.util.payloads.*;
 import org.joml.Matrix4f;
 import org.lwjgl.glfw.GLFW;
+import org.watermedia.api.media.MediaAPI;
+import org.watermedia.api.media.platform.YoutubePlatform;
+import org.watermedia.tools.ThreadTool;
+import org.watermedia.youtube.patch.YouTubePlatform;
 
 import java.awt.*;
 import java.text.Format;
@@ -91,6 +100,7 @@ public class HoloClient implements ClientModInitializer {
     public static Color SILENT_HOLO_COLOR = new Color(36, 36, 122,255);
     public static Color BATTLE_HOLO_COLOR = new Color(255, 144, 166,255);
     public static Color SCOUT_HOLO_COLOR = new Color(255, 240, 144,255);
+    public static Color CAMERA_HOLO_COLOR = new Color(126, 126, 126,255);
     private static final Identifier CUSTOM_POST_SHADER = Identifier.of("holo", "silent");
 
     public static int hostHealth = 0;
@@ -120,17 +130,6 @@ public class HoloClient implements ClientModInitializer {
             }
         }));
 
-        ModifyPlayerRenderLayer.EVENT.register((player, texture)->{
-            if (HoloClient.playersInHolo.containsKey(player.getUuid()) || HoloPlayerComponent.KEY.get(player).inHoloMode) {
-                ModifyPlayerRenderLayer.Entry entry = new ModifyPlayerRenderLayer.Entry();
-                entry.layer = HolidaylibClient.shaderFallbackLayer(VeilRenderType.get(Identifier.of("holo","scanline"),texture), HolidaylibClient.translucentMaskedEmissiveRenderLayer(texture));
-                entry.shaderIdentifier = Identifier.of("holo", "scanline");
-                entry.priority = 1500;
-                return entry;
-            }
-            return null;
-        });
-
         ModifyPlayerSkinTint.EVENT.register((player)->{
             if (HoloClient.playersInHolo.containsKey(player.getUuid()) || HoloPlayerComponent.KEY.get(player).inHoloMode) {
                 HologramType type = HoloPlayerComponent.KEY.get(player).hologramType;
@@ -142,6 +141,7 @@ public class HoloClient implements ClientModInitializer {
                     case SILENT -> color = SILENT_HOLO_COLOR;
                     case BATTLE, BATTLE_DUEL -> color = (player.getUuidAsString().equals("5de5299b-83c1-4fe4-9c47-b8aae4fed6b1") && type.equals(HologramType.BATTLE_DUEL)) ? new Color(144,255,166) : BATTLE_HOLO_COLOR;
                     case SCOUT -> color = SCOUT_HOLO_COLOR;
+                    case CAMERA -> color = CAMERA_HOLO_COLOR;
                     default -> color = HOLO_COLOR;
                 }
                 return HolidaylibClient.shaderFallbackColor(color, new Color(color.getRed(),color.getBlue(),color.getGreen(),128));
@@ -165,40 +165,6 @@ public class HoloClient implements ClientModInitializer {
                 annoyingLightThatStopsShadersFromRecompiling.free();
             }
         });
-        WorldRenderEvents.AFTER_ENTITIES.register((t)->{
-            HoloConfig config = AutoConfig.getConfigHolder(HoloConfig.class).getConfig();
-            if (config.useVeilLights) {
-                VeilRenderSystem.renderer().enableBuffers(Identifier.of(Holo.MOD_ID, "holo_light_buffer"), DynamicBufferType.LIGHT_COLOR, DynamicBufferType.LIGHT_UV, DynamicBufferType.ALBEDO, DynamicBufferType.NORMAL);
-                if (clientLight == null) {
-                    PointLightData pointLightData = new PointLightData();
-                    clientLight = VeilRenderSystem.renderer().getLightRenderer().addLight(pointLightData);
-                    clientLight.getLightData().setColor(Colors.WHITE);
-                    clientLight.getLightData().setRadius(100000f);
-                    clientLight.getLightData().setBrightness(0.0001f);
-                }
-                HoloLightRenderer.changeLightWithPlayer(MinecraftClient.getInstance().player, clientLight, t.tickCounter().getTickDelta(true));
-                if (annoyingLightThatStopsShadersFromRecompiling == null) {
-                    PointLightData pointLightData = new PointLightData();
-                    annoyingLightThatStopsShadersFromRecompiling = VeilRenderSystem.renderer().getLightRenderer().addLight(pointLightData);
-                    annoyingLightThatStopsShadersFromRecompiling.getLightData().setColor(Colors.WHITE);
-                    annoyingLightThatStopsShadersFromRecompiling.getLightData().setRadius(100000f);
-                    annoyingLightThatStopsShadersFromRecompiling.getLightData().setBrightness(0.0001f);
-                }
-                Vec3d d = MinecraftClient.getInstance().player.getCameraPosVec(0f).add(MinecraftClient.getInstance().player.getRotationVecClient().multiply(0.25f));
-                annoyingLightThatStopsShadersFromRecompiling.getLightData().setPosition(d.x, d.y, d.z);
-            }
-            ticks += MinecraftClient.getInstance().getRenderTickCounter().getLastFrameDuration();
-            ShaderProgram shader = VeilRenderSystem.setShader(Identifier.of(Holo.MOD_ID, "scanline"));
-
-            if (shader == null) {
-                return;
-            }
-
-            shader.getUniform("STime").setFloat(ticks);
-            if (ticks >= 60) {
-                ticks = 0;
-            }
-        });
         keyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.holo.swap", // The translation key of the keybinding's name
                 InputUtil.Type.KEYSYM, // The type of the keybinding, KEYSYM for keyboard, MOUSE for mouse.
@@ -216,22 +182,6 @@ public class HoloClient implements ClientModInitializer {
             TerminalChatScreen.possibleSuggestions.clear();
             TerminalChatScreen.possibleSuggestions.addAll(packet.commands());
             TerminalChatScreen.refresh = true;
-        });
-        VeilEventPlatform.INSTANCE.preVeilPostProcessing((pipelineName, pipeline, context) -> {
-            if (CUSTOM_POST_SHADER.equals(pipelineName)) {
-                ShaderProgram shader = context.getShader(CUSTOM_POST_SHADER);
-                if (shader != null) {
-                    if (MinecraftClient.getInstance().currentScreen instanceof TerminalChatScreen) {
-                        shader.getUniform("shouldRender").setInt(1);
-                    } else if (hologramType != null && hologramType.equals(HologramType.SILENT)) {
-                        shader.getUniform("shouldRender").setInt(2);
-                    } else {
-                        shader.getUniform("shouldRender").setInt(0);
-                    }
-                    shader.getUniform("noiseTime").setFloat(noiseTime);
-                    noiseTime -= MinecraftClient.getInstance().getRenderTickCounter().getLastFrameDuration()/20;
-                }
-            }
         });
 
         ClientPlayNetworking.registerGlobalReceiver(Holo.HOLO_STATUS_INFO, (packet,context) -> {
@@ -251,7 +201,6 @@ public class HoloClient implements ClientModInitializer {
                 playersInHolo.put(uuid, type);
                 if (context.player() != null) {
                     if (uuid.equals(context.player().getUuid())) {
-                        VeilRenderSystem.renderer().getPostProcessingManager().add(CUSTOM_POST_SHADER);
                         hologramType = type;
                         noiseTime = 1;
                         context.player().playSound(Holo.holo_switch,1,new Random().nextFloat(0.9f,1.1f));
@@ -260,7 +209,6 @@ public class HoloClient implements ClientModInitializer {
             } else {
                 if (context.player() != null) {
                     if (uuid.equals(context.player().getUuid())) {
-                        VeilRenderSystem.renderer().getPostProcessingManager().remove(CUSTOM_POST_SHADER);
                         hologramType = null;
                         MinecraftClient.getInstance().getWindow().setFramerateLimit(MinecraftClient.getInstance().options.getMaxFps().getValue());
                     }
@@ -289,7 +237,12 @@ public class HoloClient implements ClientModInitializer {
 
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (client.player == null) {
+                if (!PhoneHolder.minetokPlayer.isEmpty())
+                    PhoneHolder.minetokPlayer.getFirst().pause();
+            }
             if (client.player != null) {
+                PhoneHolder.mineTok();
                 if (!(client.player.isUsingItem() && client.player.getActiveItem().isOf(ModItems.PHONE))) {
                     if (PhoneHolder.phoneState != PhoneHolder.PhoneState.HOME) {
                         PhoneHolder.phoneState = PhoneHolder.PhoneState.HOME;
@@ -311,34 +264,32 @@ public class HoloClient implements ClientModInitializer {
             });
             if (client.player != null)
                 StyleMeterHUD.lastStylePoints = StyleMeterComponent.KEY.get(client.player).c_totalStyleMeter/6f;
-            if (hologramType != null) {
-                if (hologramType != HologramType.BATTLE_DUEL) {
-                    while (terminalBind.wasPressed()) {
-                        PacketByteBuf data = PacketByteBufs.create();
-                        client.execute(() -> {
-                            ClientPlayNetworking.send(new RequestTerminalAutocompleteC2SPacket());
-                        });
-                        client.setScreen(new TerminalChatScreen(""));
-                    }
-                } else {
-
-                    while (terminalBind.wasPressed()) {
-                        if (timesTriedToOpenTerminalAsABattleDuelHologram < angrierBattleDuelWarning.size()) {
-                            if (client.player != null) {
-                                client.player.sendMessage(Text.literal(angrierBattleDuelWarning.get(timesTriedToOpenTerminalAsABattleDuelHologram)).formatted(Formatting.RED));
-                            }
-                        }
-                        else  if (timesTriedToOpenTerminalAsABattleDuelHologram == 100) {
-                            client.player.sendMessage(Text.literal("Did you really think that would work? ...... I'm setting your framerate to ten.").formatted(Formatting.DARK_RED));
-                            client.getWindow().setFramerateLimit(10);
-                        } else {
-                            client.player.sendMessage(Text.literal("You clicked the button " + timesTriedToOpenTerminalAsABattleDuelHologram + " times.").formatted(Formatting.RED));
-                        }
-                        timesTriedToOpenTerminalAsABattleDuelHologram++;
-                    }
+            if (hologramType != HologramType.BATTLE_DUEL) {
+                while (terminalBind.wasPressed()) {
+                    PacketByteBuf data = PacketByteBufs.create();
+                    client.execute(() -> {
+                        ClientPlayNetworking.send(new RequestTerminalAutocompleteC2SPacket());
+                    });
+                    client.setScreen(new TerminalChatScreen(""));
                 }
+            } else {
 
+                while (terminalBind.wasPressed()) {
+                    if (timesTriedToOpenTerminalAsABattleDuelHologram < angrierBattleDuelWarning.size()) {
+                        if (client.player != null) {
+                            client.player.sendMessage(Text.literal(angrierBattleDuelWarning.get(timesTriedToOpenTerminalAsABattleDuelHologram)).formatted(Formatting.RED));
+                        }
+                    }
+                    else  if (timesTriedToOpenTerminalAsABattleDuelHologram == 100) {
+                        client.player.sendMessage(Text.literal("Did you really think that would work? ...... I'm setting your framerate to ten.").formatted(Formatting.DARK_RED));
+                        client.getWindow().setFramerateLimit(10);
+                    } else {
+                        client.player.sendMessage(Text.literal("You clicked the button " + timesTriedToOpenTerminalAsABattleDuelHologram + " times.").formatted(Formatting.RED));
+                    }
+                    timesTriedToOpenTerminalAsABattleDuelHologram++;
+                }
             }
+
             while (keyBinding.wasPressed()) {
                 if (MinecraftClient.getInstance().player != null) {
                     if (MinecraftClient.getInstance().player.getActiveItem().isOf(ModItems.PHONE)) {
@@ -352,6 +303,7 @@ public class HoloClient implements ClientModInitializer {
                 });
             }
         });
+
     }
 
     public static void drawPlayerHead(PlayerEntity player, Identifier texture, DrawContext context, int x, int y) {
@@ -364,24 +316,6 @@ public class HoloClient implements ClientModInitializer {
             ModifyPlayerRenderLayer.Entry entry = ModifyPlayerRenderLayer.EVENT.invoker().modify(player, texture);
             Color skinTint = ModifyPlayerSkinTint.EVENT.invoker().modify(player);
 
-
-            if (Holidaylib.VEIL_LOADED) {
-                if (entry != null) {
-                    if (entry.shaderIdentifier != null) {
-
-                        if (skinTint == null) skinTint = new Color(-1);
-                        RenderSystem.setShaderTexture(0, texture);
-                        foundry.veil.api.client.render.VeilRenderSystem.setShader(entry.shaderIdentifier);
-                        RenderSystem.enableBlend();
-                        BufferBuilder bufferBuilder = bufferSection(context, x, y, u1, u2, u1, u2, skinTint.getRGB());
-                        BufferRenderer.drawWithGlobalProgram(bufferBuilder.end());
-                        bufferBuilder = bufferSection(context, x, y, u1h, u2h, u1, u2, skinTint.getRGB());
-                        BufferRenderer.drawWithGlobalProgram(bufferBuilder.end());
-                        RenderSystem.disableBlend();
-                        return;
-                    }
-                }
-            }
         }
         RenderSystem.setShaderTexture(0, texture);
         RenderSystem.setShader(GameRenderer::getPositionTexProgram);
@@ -403,5 +337,6 @@ public class HoloClient implements ClientModInitializer {
         bufferBuilder.vertex(matrix4f, x + 16, y, 0).texture(u2, v1).color(color).light(-1);
         return bufferBuilder;
     }
+
 
 }
