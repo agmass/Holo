@@ -8,6 +8,7 @@
     "CannotModifyInBattleMixinVehicle",
     "CannotModifyMixin",
     "HoloUpdateMixin",
+    "LoreAccurateHolosCannotPickupitemsMixin",
     "NoAdvancementsMixin",
     "NoAllayMixin",
     "NoFakeDeathMessageMixin",

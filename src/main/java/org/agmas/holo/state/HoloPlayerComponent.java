@@ -1,6 +1,8 @@
 package org.agmas.holo.state;
 
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
 import net.minecraft.registry.RegistryKey;
@@ -34,6 +36,8 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
     public boolean loreAccurate = false;
     public boolean battleUsesNormalSaturation = false;
     public HologramType hologramType = HologramType.NORMAL;
+    public PlayerInventory loreModeBattleStoredInv;
+    public ItemStack loreModeBattleStoredOffhand;
     public int totalHolosCreated = 0;
     public int lastComputerMaxPower = 0;
     public BlockPos computerPos = new BlockPos(0,0,0);

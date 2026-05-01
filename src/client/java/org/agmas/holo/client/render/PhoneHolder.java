@@ -1,27 +1,18 @@
 package org.agmas.holo.client.render;
 
-import com.google.common.collect.Queues;
 import com.mojang.blaze3d.platform.GlConst;
 import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.systems.RenderCall;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
-import foundry.veil.Veil;
-import foundry.veil.VeilClient;
 import foundry.veil.api.client.render.VeilLevelPerspectiveRenderer;
 import foundry.veil.api.client.render.VeilRenderSystem;
-import foundry.veil.api.client.render.VeilRenderer;
 import foundry.veil.api.client.render.framebuffer.AdvancedFbo;
-import foundry.veil.api.client.render.framebuffer.FramebufferManager;
 import foundry.veil.api.client.render.rendertype.VeilRenderType;
 import foundry.veil.api.client.util.Easing;
-import foundry.veil.impl.client.render.pipeline.VeilFirstPersonRenderer;
 import me.shedaniel.autoconfig.AutoConfig;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
-import net.irisshaders.iris.gl.texture.TextureWrapper;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.Mouse;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.CubeMapRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -35,36 +26,25 @@ import net.minecraft.client.render.model.json.ModelTransformationMode;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
-import net.minecraft.resource.ResourceManager;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.text.Text;
 import net.minecraft.util.*;
 import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Position;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec2f;
-import net.minecraft.util.thread.ReentrantThreadExecutor;
-import net.minecraft.util.thread.ThreadExecutor;
 import org.agmas.holo.Holo;
 import org.agmas.holo.ModItems;
-import org.agmas.holo.client.HoloClient;
 import org.agmas.holo.client.config.HoloConfig;
 import org.agmas.holo.client.mixin.MinecraftClientAccessor;
 import org.agmas.holo.state.HoloPlayerComponent;
 import org.agmas.holo.util.FakestPlayer;
 import org.agmas.holo.util.HologramType;
-import org.jetbrains.annotations.NotNull;
 import org.joml.*;
-import org.lwjgl.opengl.GL11C;
-import org.watermedia.WaterMedia;
 import org.watermedia.api.media.MRL;
 import org.watermedia.api.media.MediaAPI;
 import org.watermedia.api.media.engines.ALEngine;
 import org.watermedia.api.media.engines.GLEngine;
-import org.watermedia.api.media.players.FFMediaPlayer;
 import org.watermedia.api.media.players.MediaPlayer;
-import org.watermedia.bootstrap.app.WaterMediaApp;
-import org.watermedia.tools.ThreadTool;
 
 import java.awt.*;
 import java.io.IOException;
@@ -73,13 +53,11 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class PhoneHolder {
     public static Matrix4f renderProj = new Matrix4f();
@@ -144,8 +122,15 @@ public class PhoneHolder {
                         } catch (InterruptedException e) {
                             throw new RuntimeException(e);
                         }
-                        MRL minetokMRL = MediaAPI.getMRL(s.split("\n")[new Random().nextInt(totalTiktoks)]);
-                        minetokMRL.await(300000);
+                        MRL minetokMRL = null;
+                        try {
+                            minetokMRL = MediaAPI.getMRL(s.split("\n")[new Random().nextInt(totalTiktoks)]);
+                            minetokMRL.await(300000);
+                        } catch (Exception e) {
+                            loadableTiktoks--;
+                            Log.info(LogCategory.GENERAL, "Failed to load video: " + e.getMessage());
+                            return;
+                        }
                         MediaPlayer player = minetokMRL.createPlayer(
                                 new GLEngine.Builder(((MinecraftClientAccessor) MinecraftClient.getInstance()).holo$getThread(), MinecraftClient.getInstance())
                                         .setGenTexture(GlStateManager::_genTexture)
@@ -155,6 +140,11 @@ public class PhoneHolder {
                                         .setDelTexture(GlStateManager::_deleteTexture)
                                         .setPixelStore(GlStateManager::_pixelStore)
                                         .setTexParameter(GlStateManager::_texParameter).build(), ALEngine.buildDefault());
+
+                        if (player == null) {
+                            loadableTiktoks--;
+                            return;
+                        }
                         player.startPaused();
                         player.mute(true);
                         minetokPlayer.addLast(player);
@@ -171,11 +161,19 @@ public class PhoneHolder {
     public static boolean leftClickedLastFrame = false;
     public static void renderPhoneBuffer() {
         if (phoneState.equals(PhoneState.DOOMSCROLLING)) {
+            AtomicReference<MediaPlayer> nonBufferingPlayer = new AtomicReference<>();
             minetokPlayer.forEach((mp)->{
                 if (!mp.equals(minetokPlayer.getFirst())) {
                     mp.pause();
                 }
+                if (mp.paused()) {
+                    nonBufferingPlayer.set(mp);
+                }
             });
+            if (nonBufferingPlayer.get() != null && minetokPlayer.getFirst().buffering()) {
+                minetokPlayer.remove(nonBufferingPlayer.get());
+                minetokPlayer.addFirst(nonBufferingPlayer.get());
+            }
             if (!minetokPlayer.isEmpty()) {
                 if (minetokPlayer.getFirst().paused()) {
                     minetokPlayer.getFirst().seek(0);
@@ -263,7 +261,7 @@ public class PhoneHolder {
 
             if (phoneState.equals(PhoneState.DOOMSCROLLING)) {
                 if (!minetokPlayer.isEmpty()) {
-                    if (loadTimeout > 80 || ((MinecraftClient.getInstance().mouse.wasLeftButtonClicked() && !leftClickedLastFrame) && !loadingTok) || (minetokPlayer.getFirst().error() || minetokPlayer.getFirst().buffering())) {
+                    if (((MinecraftClient.getInstance().mouse.wasLeftButtonClicked() && !leftClickedLastFrame) && !loadingTok) || (minetokPlayer.getFirst().error() || minetokPlayer.getFirst().buffering())) {
                         minetokPlayer.getFirst().stop();
                         minetokPlayer.getFirst().release();
                         minetokPlayer.removeFirst();

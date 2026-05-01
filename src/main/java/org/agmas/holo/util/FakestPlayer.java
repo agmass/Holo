@@ -57,16 +57,19 @@ public class FakestPlayer extends ServerPlayerEntity {
     public void tick() {
         if (type != HologramType.CAMERA)
             tickMovement();
-        ServerPlayerEntity p = getServer().getPlayerManager().getPlayer(ownerUUID);
-        if (p != null) {
-            if (HoloPlayerComponent.KEY.get(p).loreAccurate) {
-                getInventory().dropAll();
-            }
-        }
         super.tick();
     }
 
-
+    @Override
+    protected void dropInventory() {
+        ServerPlayerEntity p = getServer().getPlayerManager().getPlayer(ownerUUID);
+        if (p != null) {
+            if (HoloPlayerComponent.KEY.get(p).loreAccurate) {
+                return;
+            }
+        }
+        super.dropInventory();
+    }
 
     @Override
     public Text getDisplayName() {
