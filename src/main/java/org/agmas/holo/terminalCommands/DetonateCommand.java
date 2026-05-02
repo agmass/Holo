@@ -54,7 +54,7 @@ public class DetonateCommand extends TerminalCommand{
             }
         }
         if (holoToDetonate != null) {
-            holoToDetonate.getWorld().createExplosion(holoToDetonate,holoToDetonate.getX(),holoToDetonate.getY(),holoToDetonate.getZ(),4, World.ExplosionSourceType.TNT);
+            holoToDetonate.getWorld().createExplosion(player,holoToDetonate.getX(),holoToDetonate.getY(),holoToDetonate.getZ(),4, World.ExplosionSourceType.TNT);
             holoToDetonate.kill();
             return Text.literal("Holo detonated.").formatted(Formatting.GREEN);
         }

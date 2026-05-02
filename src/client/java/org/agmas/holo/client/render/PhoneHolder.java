@@ -513,11 +513,15 @@ public class PhoneHolder {
         drawContext.getMatrices().push();
         drawContext.drawTexture(Identifier.of("minecraft", "textures/block/end_stone.png"),0,0,0,0,720,1280,64,64);
 
-        drawContext.getMatrices().translate(32f,128f,0);
+        drawContext.getMatrices().translate(32f,148f,0);
+        int y = 148;
         for (PlayerListEntry playerListEntry : MinecraftClient.getInstance().getNetworkHandler().getListedPlayerListEntries()) {
             boolean self = playerListEntry.getProfile().getId().equals(MinecraftClient.getInstance().player.getUuid());
             if (self) {
                 drawContext.fill(-6,-6,720-64,48+6,new Color(100,100,100,100).getRGB());
+            }
+            else if ((y * 3 < cursorPos.y + 28 || y * 3 < cursorPos.y + 100) && ((y + 48) * 3 > cursorPos.y + 28 || (y + 48) * 3 > cursorPos.y + 100)) {
+                drawContext.fill(-6,-6,720-64,48+6,new Color(160,160,255,200).getRGB());
             }
             PlayerSkinDrawer.draw(drawContext,playerListEntry.getSkinTextures(),0,0,48);
             Text name = playerListEntry.getDisplayName();
@@ -527,7 +531,9 @@ public class PhoneHolder {
             drawContext.drawText(MinecraftClient.getInstance().textRenderer, self ? Text.literal("You").formatted(Formatting.YELLOW) : name,16,2,-1,true);
             drawContext.getMatrices().pop();
             drawContext.getMatrices().translate(0,64f,0);
+            y += 64;
         }
+
 
         drawContext.getMatrices().pop();
     }
