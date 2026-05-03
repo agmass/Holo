@@ -1,5 +1,8 @@
 package org.agmas.holo.state;
 
+import de.maxhenkel.voicechat.api.Group;
+import net.fabricmc.loader.impl.util.log.Log;
+import net.fabricmc.loader.impl.util.log.LogCategory;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
@@ -14,6 +17,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.agmas.holo.Holo;
+import org.agmas.holo.ModItems;
 import org.agmas.holo.util.FakestPlayer;
 import org.agmas.holo.util.HoloModifiers;
 import org.agmas.holo.util.HologramType;
@@ -39,12 +43,16 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
     public PlayerInventory loreModeBattleStoredInv;
     public ItemStack loreModeBattleStoredOffhand;
     public int totalHolosCreated = 0;
+    public int callSound = 0;
     public int lastComputerMaxPower = 0;
     public BlockPos computerPos = new BlockPos(0,0,0);
     public RegistryKey<World> computerWorld = null;
     public int power = 0;
     public String holoName = "";
+    public Group callGroup = null;
+    public boolean playingCallSound = false;
     public UUID ownerUUID = null;
+    public UUID caller = null;
     public ArrayList<HoloModifiers> activeModifiers = new ArrayList<>();
     public ArrayList<UUID> playersInFight = new ArrayList<>();
 
@@ -68,6 +76,7 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
         computerPos = new BlockPos(0,0,0);
         activeModifiers = new ArrayList<>();
         playersInFight = new ArrayList<>();
+        caller = null;
         sync();
     }
 
@@ -80,6 +89,33 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
             ownerUUID = fp.ownerUUID;
             hologramType = fp.type;
         }
+        if (caller != null && player.getServer().getPlayerManager().getPlayer(caller) == null) {
+            caller = null;
+            callSound = 0;
+            playingCallSound = false;
+        }
+        if (callSound != 0) {
+            sync();
+        }
+        sync();
+    }
+
+    public void stopCall(UUID caller) {
+        if (player.getServer().getPlayerManager().getPlayer(caller) != null) {
+            HoloPlayerComponent.KEY.get(caller).callSound = 0;
+        }
+        sync();
+    }
+    public void startCall(UUID caller, Group group) {
+        int ringtone = player.getRandom().nextBetween(1,Holo.ringtones.size());
+        callSound = ringtone;
+        if (player.getServer().getPlayerManager().getPlayer(caller) != null) {
+            HoloPlayerComponent.KEY.get(player.getServer().getPlayerManager().getPlayer(caller)).callSound = ringtone;
+            HoloPlayerComponent.KEY.get(player.getServer().getPlayerManager().getPlayer(caller)).sync();
+        }
+        this.caller = caller;
+        callGroup = group;
+        playingCallSound = false;
         sync();
     }
 
@@ -95,6 +131,13 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
         tag.putInt("computerPosX", computerPos.getX());
         tag.putInt("computerPosY", computerPos.getY());
         tag.putInt("computerPosZ", computerPos.getZ());
+        if (caller != null)
+            tag.putUuid("caller", caller);
+        if (player.getInventory().contains(itemStack -> itemStack.isOf(ModItems.PHONE))) {
+            tag.putInt("callSound", callSound);
+        } else {
+            tag.putInt("callSound", 0);
+        }
         if (ownerUUID != null)
             tag.putUuid("ownerUUID", ownerUUID);
         if (computerWorld == null) computerWorld = player.getWorld().getRegistryKey();
@@ -121,6 +164,12 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
         hologramType = HologramType.values()[tag.getInt("type")];
         totalHolosCreated = tag.getInt("totalHolosCreated");
         lastComputerMaxPower = tag.getInt("lastComputerMaxPower");
+        callSound = tag.getInt("callSound");
+        if (tag.contains("caller")) {
+            caller = tag.getUuid("caller");
+        } else {
+            caller = null;
+        }
         if (tag.contains("ownerUUID")) {
             ownerUUID = tag.getUuid("ownerUUID");
         }

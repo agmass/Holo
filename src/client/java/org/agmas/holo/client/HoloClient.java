@@ -103,6 +103,7 @@ public class HoloClient implements ClientModInitializer {
     public static Color CAMERA_HOLO_COLOR = new Color(126, 126, 126,255);
     private static final Identifier CUSTOM_POST_SHADER = Identifier.of("holo", "silent");
 
+
     public static int hostHealth = 0;
     public static int power = 0;
     public static int maxPower = 555;
@@ -153,6 +154,7 @@ public class HoloClient implements ClientModInitializer {
 
         HudRenderCallback.EVENT.register(((drawContext, renderTickCounter) -> {
             if (MinecraftClient.getInstance().player != null) {
+                PhoneHolder.renderPhoneBuffer(drawContext);
                 if (HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).hologramType.equals(HologramType.BATTLE_DUEL))
                     StyleMeterHUD.render(MinecraftClient.getInstance().player,drawContext,renderTickCounter);
             }
@@ -228,12 +230,6 @@ public class HoloClient implements ClientModInitializer {
 
         List<String> angrierBattleDuelWarning = List.of("You can't use the terminal in a duel hologram.", "You CAN'T use the TERMINAL in a DUEL HOLOGRAM!", "STOP TRYING TO USE THE TERMINAL!!", "Are you stupid", "Fine. I'll let you use the terminal if you click the button 100 times in a row.");
 
-        FabricVeilRenderLevelStageEvent.EVENT.register((stage, levelRenderer, bufferSource, matrixStack, frustumMatrix, projectionMatrix, renderTick, deltaTracker, camera, frustum) -> {
-
-            if (stage == VeilRenderLevelStageEvent.Stage.AFTER_LEVEL) {
-                PhoneHolder.renderPhoneBuffer();
-            }
-        });
 
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -249,9 +245,12 @@ public class HoloClient implements ClientModInitializer {
                         PhoneHolder.PANORAMA = new CubeMapRenderer(Identifier.of("holo", "textures/gui/title/background/" + new Random().nextInt(PhoneHolder.panoramas) + "/panorama"));
                         PhoneHolder.ROTATING_PANORAMA = new RotatingCubeMapRenderer(PhoneHolder.PANORAMA);
                     }
+                    PhoneHolder.usingPhone = false;
                     PhoneHolder.appTransition = 1;
                     PhoneHolder.rotationTransition = 1;
                     PhoneHolder.battery = client.player.getRandom().nextBetween(1,100);
+                } else {
+                    PhoneHolder.usingPhone = true;
                 }
             }
             if (BattleHologramComputer.openEditScreen) {

@@ -15,6 +15,7 @@
     "UnfocusChatInTerminal",
     "phone.IncorrectPanoramaMixin",
     "phone.LessViewBobbingMixin",
+    "phone.NoSwappingHotbarMixin",
     "phone.PhoneNoCrosshairMixin",
     "phone.PhoneNoSlowdownMixin",
     "phone.PhonePoseMixin",
@@ -25,7 +26,9 @@
   },
   "mixins": [
     "AllowYoutubeMixin",
+    "PlayCallSoundMixin",
     "TurnOffGLEngineMixin",
+    "phone.NoScrollWheelMixin",
     "phone.PhoneLockMouseMixin"
   ]
 }

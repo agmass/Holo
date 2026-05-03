@@ -21,6 +21,9 @@
     ],
     "modmenu": [
       "org.agmas.holo.client.config.HoloModMenuIntergration"
+    ],
+    "voicechat": [
+      "org.agmas.holo.voicechat.HoloVoicechatPlugin"
     ]
   },
   "custom": {
@@ -42,6 +45,7 @@
     "fabricloader": ">=${loader_version}",
     "fabric": "*",
     "minecraft": "${minecraft_version}",
-    "veil": ">=2.5.1"
+    "veil": ">=2.5.1",
+    "voicechat_api": ">=2.6.0"
   }
 }

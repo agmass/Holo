@@ -4,6 +4,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import de.maxhenkel.voicechat.api.Group;
+import de.maxhenkel.voicechat.api.VoicechatConnection;
+import de.maxhenkel.voicechat.api.VoicechatServerApi;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentType;
@@ -74,6 +77,7 @@ import org.agmas.holo.terminalCommands.TerminalCommand;
 import org.agmas.holo.terminalCommands.TerminalCommandParser;
 import org.agmas.holo.util.*;
 import org.agmas.holo.util.payloads.*;
+import org.agmas.holo.voicechat.HoloVoicechatPlugin;
 
 import java.util.*;
 
@@ -101,6 +105,8 @@ public class Holo implements ModInitializer {
 
     public static final CustomPayload.Id<TerminalCommandC2SPacket> TERMINAL_COMMAND = TerminalCommandC2SPacket.ID;
 
+    public static final CustomPayload.Id<SendCallC2SPacket> SEND_CALL = SendCallC2SPacket.ID;
+
     public static final CustomPayload.Id<SendTerminalAutocompleteS2CPacket> SEND_TERMINAL_AUTOCOMPLETE = SendTerminalAutocompleteS2CPacket.ID;
     public static final CustomPayload.Id<RequestTerminalAutocompleteC2SPacket> REQUEST_TERMINAL_AUTOCOMPLETE = RequestTerminalAutocompleteC2SPacket.ID;
     public static final CustomPayload.Id<TemporarilyShowEntityS2CPacket> TEMPORARILY_SHOW_ENTITY = TemporarilyShowEntityS2CPacket.ID;
@@ -119,6 +125,14 @@ public class Holo implements ModInitializer {
     public static SoundEvent holo_switch;
     public static SoundEvent whatsappdanger;
     public static SoundEvent holo_death;
+
+    public static SoundEvent incoming;
+    public static SoundEvent xylophone;
+    public static SoundEvent third_sanctuary;
+    public static SoundEvent seaside;
+    public static SoundEvent marimba;
+    public static List<SoundEvent>  ringtones;
+
     public static ArrayList<FakestPlayer> queuedHoloRemovals = new ArrayList<>();
 
     @Override
@@ -136,6 +150,7 @@ public class Holo implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(SwapC2SPacket.ID, SwapC2SPacket.CODEC);
         PayloadTypeRegistry.playC2S().register(TerminalCommandC2SPacket.ID, TerminalCommandC2SPacket.CODEC);
         PayloadTypeRegistry.playC2S().register(RequestTerminalAutocompleteC2SPacket.ID, RequestTerminalAutocompleteC2SPacket.CODEC);
+        PayloadTypeRegistry.playC2S().register(SendCallC2SPacket.ID, SendCallC2SPacket.CODEC);
 
         holo_switch = Registry.register(Registries.SOUND_EVENT, Identifier.of(MOD_ID, "holo_switch"),
                 SoundEvent.of(Identifier.of(MOD_ID, "holo_switch")));
@@ -143,6 +158,24 @@ public class Holo implements ModInitializer {
                 SoundEvent.of(Identifier.of(MOD_ID, "whatsappdanger")));
         holo_death = Registry.register(Registries.SOUND_EVENT, Identifier.of(MOD_ID, "holo_death"),
                 SoundEvent.of(Identifier.of(MOD_ID, "holo_death")));
+
+        // Ringtones
+
+        incoming = Registry.register(Registries.SOUND_EVENT, Identifier.of(MOD_ID, "incoming"),
+                SoundEvent.of(Identifier.of(MOD_ID, "incoming")));
+        marimba = Registry.register(Registries.SOUND_EVENT, Identifier.of(MOD_ID, "marimba"),
+                SoundEvent.of(Identifier.of(MOD_ID, "marimba")));
+        xylophone = Registry.register(Registries.SOUND_EVENT, Identifier.of(MOD_ID, "xylophone"),
+                SoundEvent.of(Identifier.of(MOD_ID, "xylophone")));
+        seaside = Registry.register(Registries.SOUND_EVENT, Identifier.of(MOD_ID, "seaside"),
+                SoundEvent.of(Identifier.of(MOD_ID, "seaside")));
+        third_sanctuary = Registry.register(Registries.SOUND_EVENT, Identifier.of(MOD_ID, "third_sanctuary"),
+                SoundEvent.of(Identifier.of(MOD_ID, "third_sanctuary")));
+
+        ringtones = List.of(
+                incoming, xylophone, third_sanctuary, seaside, marimba
+        );
+
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(CommandManager.literal("clearPlayerHoloData").requires(serverCommandSource -> serverCommandSource.hasPermissionLevel(2)).then(CommandManager.argument("player", EntityArgumentType.player()).executes(commandContext -> {
                 ServerPlayerEntity entity = EntityArgumentType.getPlayer(commandContext, "player");
@@ -226,6 +259,25 @@ public class Holo implements ModInitializer {
                 context.player().sendMessage(TerminalCommandParser.findAndRunCommand(command, context.player()));
             } else{
                 context.player().sendMessage(Text.literal("You can't use the terminal in a duel!").formatted(Formatting.RED));
+            }
+        });
+        ServerPlayNetworking.registerGlobalReceiver(Holo.SEND_CALL, (payload, context) -> {
+            ServerPlayerEntity playerEntity = context.server().getPlayerManager().getPlayer(payload.target());
+            if (playerEntity != null) {
+                VoicechatServerApi api = (VoicechatServerApi) HoloVoicechatPlugin.api;
+                Group group = api.groupBuilder()
+                        .setPersistent(false)
+                        .setName("Call for " + playerEntity.getNameForScoreboard())
+                        .setHidden(true)
+                        .setType(Group.Type.OPEN)
+                        .build();
+
+                VoicechatConnection connection = api.getConnectionOf(playerEntity.getUuid());
+                if (connection == null) {
+                    return;
+                }
+                connection.setGroup(group);
+                HoloPlayerComponent.KEY.get(playerEntity).startCall(playerEntity.getUuid(), group);
             }
         });
         ServerPlayNetworking.registerGlobalReceiver(Holo.SWAP_PACKET, (payload, context) -> {

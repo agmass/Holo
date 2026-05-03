@@ -16,5 +16,30 @@
     "sounds": [
       "holo:whatsappdanger"
     ]
+  },
+  "marimba": {
+    "sounds": [
+      "holo:marimba"
+    ]
+  },
+  "seaside": {
+    "sounds": [
+      "holo:seaside"
+    ]
+  },
+  "third_sanctuary": {
+    "sounds": [
+      "holo:third_sanctuary"
+    ]
+  },
+  "xylophone": {
+    "sounds": [
+      "holo:xylophone"
+    ]
+  },
+  "incoming": {
+    "sounds": [
+      "holo:incoming"
+    ]
   }
 }

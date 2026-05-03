@@ -59,6 +59,8 @@ repositories {
         url "https://www.cursemaven.com"
         content { includeGroup "curse.maven" }
     }
+
+    maven { url = 'https://maven.maxhenkel.de/releases' }
 }
 
 dependencies {
@@ -83,6 +85,12 @@ dependencies {
     modImplementation "org.ladysnake.cardinal-components-api:cardinal-components-entity:${project.cca_version}"
     modImplementation "curse.maven:watermedia-yt-plugin-1395870:7999308"
     modImplementation "curse.maven:watermedia-869524:7999277"
+
+    implementation "de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}"
+
+    modRuntimeOnly "maven.modrinth:simple-voice-chat:fabric-${voicechat_version}"
+    modRuntimeOnly "de.maxhenkel.voicechat:voicechat-api:${voicechat_api_version}:fabric-stub"
+
 }
 
 processResources {
