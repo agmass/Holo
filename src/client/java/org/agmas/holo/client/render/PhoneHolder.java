@@ -279,9 +279,28 @@ public class PhoneHolder {
                     leftClickedLastFrame = MinecraftClient.getInstance().mouse.wasLeftButtonClicked();
                 }
             }
+            if (phoneState.equals(PhoneState.INCOMING_CALL) || phoneState.equals(PhoneState.OUTGOING_CALL)) {
+                renderingPanorama = true;
+                ROTATING_PANORAMA.render(drawContext, 1280, 720, 1, MinecraftClient.getInstance().getRenderTickCounter().getTickDelta(false) / 2.0f);
+                renderingPanorama = false;
+
+                phoneScreenTexture.copy(phoneBuffer);
+
+                drawFbo.clear();
+                drawFbo.bind(true);
+                RenderSystem.setShaderTexture(0, phoneScreenTexture.getGlId());
+                RenderSystem.setShader(GameRenderer::getPositionTexProgram);
+                Matrix4f bgTextureMatrix = drawContext.getMatrices().peek().getPositionMatrix();
+                BufferBuilder bufferBuilder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE);
+                bufferBuilder.vertex(bgTextureMatrix, (float)0, (float)0, (float)0).texture(0,0);
+                bufferBuilder.vertex(bgTextureMatrix, (float)0, (float)1280, (float)0).texture(0,1);
+                bufferBuilder.vertex(bgTextureMatrix, (float)720, (float)1280, (float)0).texture(1,1);
+                bufferBuilder.vertex(bgTextureMatrix, (float)720, (float)0, (float)0).texture(1,0);
+                VeilRenderType.get(Identifier.of("holo", "phone_blur")).draw(bufferBuilder.end());
+            }
             if (phoneState.equals(PhoneState.HOME)) {
                 renderingPanorama = true;
-                ROTATING_PANORAMA.render(drawContext,1280,720,1,MinecraftClient.getInstance().getRenderTickCounter().getTickDelta(false)/2.0f);
+                ROTATING_PANORAMA.render(drawContext, 1280, 720, 1, MinecraftClient.getInstance().getRenderTickCounter().getTickDelta(false) / 2.0f);
                 renderingPanorama = false;
                 drawContext.getMatrices().push();
                 drawContext.getMatrices().scale(3,3,1);

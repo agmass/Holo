@@ -106,13 +106,7 @@ public class HoloPlayerComponent implements AutoSyncedComponent, ServerTickingCo
         }
         sync();
     }
-    public void startCall(UUID caller, Group group) {
-        int ringtone = player.getRandom().nextBetween(1,Holo.ringtones.size());
-        callSound = ringtone;
-        if (player.getServer().getPlayerManager().getPlayer(caller) != null) {
-            HoloPlayerComponent.KEY.get(player.getServer().getPlayerManager().getPlayer(caller)).callSound = ringtone;
-            HoloPlayerComponent.KEY.get(player.getServer().getPlayerManager().getPlayer(caller)).sync();
-        }
+    public void startCall(UUID caller, Group group, int ringtone) {
         this.caller = caller;
         callGroup = group;
         playingCallSound = false;

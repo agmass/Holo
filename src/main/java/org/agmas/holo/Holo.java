@@ -277,7 +277,9 @@ public class Holo implements ModInitializer {
                     return;
                 }
                 connection.setGroup(group);
-                HoloPlayerComponent.KEY.get(playerEntity).startCall(playerEntity.getUuid(), group);
+                int ringtone = playerEntity.getRandom().nextBetween(1,Holo.ringtones.size());
+                HoloPlayerComponent.KEY.get(context.player()).callSound = ringtone;
+                HoloPlayerComponent.KEY.get(playerEntity).startCall(playerEntity.getUuid(), group,ringtone);
             }
         });
         ServerPlayNetworking.registerGlobalReceiver(Holo.SWAP_PACKET, (payload, context) -> {
