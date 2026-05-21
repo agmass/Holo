@@ -1,9 +1,13 @@
 package org.agmas.holo.block;
 
+import com.mojang.serialization.MapCodec;
 import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.fabricmc.loader.impl.util.log.Log;
+import net.fabricmc.loader.impl.util.log.LogCategory;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.BlockWithEntity;
 import net.minecraft.block.entity.CampfireBlockEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
@@ -23,6 +27,7 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.agmas.holo.Holo;
+import org.agmas.holo.ModEntities;
 import org.agmas.holo.ModItems;
 import org.agmas.holo.block.entity.HologramControllerBlockEntity;
 import org.agmas.holo.util.BattleHologramComputerEntry;
@@ -35,6 +40,11 @@ public class BattleHologramComputer extends HologramController{
     public BattleHologramComputer(Settings settings) {
         super(settings);
         setDefaultState(this.getDefaultState().with(HOLOGRAM_COUNT, 2));
+    }
+
+    @Override
+    protected MapCodec<? extends BlockWithEntity> getCodec() {
+        return createCodec(BattleHologramComputer::new);
     }
 
     protected void appendProperties(StateManager.Builder<Block, BlockState> builder) {
@@ -94,6 +104,9 @@ public class BattleHologramComputer extends HologramController{
                     }
                 }
                 if (oldComputer == null) {
+                    if (player.isSneaking()) {
+                        return ActionResult.CONSUME;
+                    }
                     BattleHologramComputerEntry thisComputer = null;
                     for (BattleHologramComputerEntry computer : Holo.playersWaitingForBattle.keySet()) {
                         if (computer.pos.equals(pos) && computer.world.equals(world)) {
@@ -130,9 +143,9 @@ public class BattleHologramComputer extends HologramController{
         }
         if (world.isClient) {
             if (!state.get(USING) && player.isSneaking()) {
-                //editing = pos;
-                //editingState = state;
-                //openEditScreen = true;
+                editing = pos;
+                editingState = world.getBlockEntity(pos, ModEntities.HOLOGRAM_CONTROLLER_BLOCK_ENTITY).get();
+                openEditScreen = true;
             }
         }
 
@@ -142,5 +155,5 @@ public class BattleHologramComputer extends HologramController{
 
     public static boolean openEditScreen = false;
     public static BlockPos editing = new BlockPos(0,0,0);
-    public static BlockState editingState = null;
+    public static HologramControllerBlockEntity editingState = null;
 }

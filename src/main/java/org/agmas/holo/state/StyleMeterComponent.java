@@ -37,6 +37,10 @@ public class StyleMeterComponent implements AutoSyncedComponent, ServerTickingCo
     }
 
     public void reset() {
+        consecutiveHits = 0;
+        timeInAir = 0;
+        stylePoints.clear();
+        lastItemUsed = null;
         sync();
     }
 

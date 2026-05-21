@@ -41,5 +41,10 @@
     "sounds": [
       "holo:incoming"
     ]
+  },
+  "alarm": {
+    "sounds": [
+      "holo:alarm"
+    ]
   }
 }

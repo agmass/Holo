@@ -13,6 +13,8 @@
     "MinecraftClientAccessor",
     "TerminalInputSuggestorMixin",
     "UnfocusChatInTerminal",
+    "phone.AlarmMakesWorldRedMixin",
+    "phone.HypnotizedFovMixin",
     "phone.IncorrectPanoramaMixin",
     "phone.LessViewBobbingMixin",
     "phone.NoSwappingHotbarMixin",
@@ -26,6 +28,7 @@
   },
   "mixins": [
     "AllowYoutubeMixin",
+    "ClientDisableEnchantsBattleMixin",
     "PlayCallSoundMixin",
     "TurnOffGLEngineMixin",
     "phone.NoScrollWheelMixin",

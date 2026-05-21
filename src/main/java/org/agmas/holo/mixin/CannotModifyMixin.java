@@ -15,7 +15,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class CannotModifyMixin {
     @Inject(method = "canPlayerModifyAt", at = @At("HEAD"), cancellable = true)
     public void sendShellUpdate(PlayerEntity player, BlockPos pos, CallbackInfoReturnable<Boolean> cir) {
-        if (HoloPlayerComponent.KEY.get(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
+        if (HoloPlayerComponent.KEY.get(player).hologramType.equals(HologramType.BATTLE_DUEL) && HoloPlayerComponent.KEY.get(player).battleCanModify) {
+            cir.setReturnValue(true);
+            cir.cancel();
+            return;
+        }
+        if (HoloPlayerComponent.KEY.get(player).hologramType.equals(HologramType.BATTLE_DUEL) && !HoloPlayerComponent.KEY.get(player).battleCanModify) {
             cir.setReturnValue(false);
             cir.cancel();
         }

@@ -11,6 +11,7 @@ import foundry.veil.api.client.render.rendertype.VeilRenderType;
 import foundry.veil.api.client.util.Easing;
 import me.shedaniel.autoconfig.AutoConfig;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
 import net.minecraft.client.MinecraftClient;
@@ -25,8 +26,11 @@ import net.minecraft.client.render.*;
 import net.minecraft.client.render.item.ItemRenderer;
 import net.minecraft.client.render.model.json.ModelTransformationMode;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.text.Text;
 import net.minecraft.util.*;
@@ -35,11 +39,14 @@ import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec2f;
 import org.agmas.holo.Holo;
 import org.agmas.holo.ModItems;
+import org.agmas.holo.client.HoloClient;
 import org.agmas.holo.client.config.HoloConfig;
 import org.agmas.holo.client.mixin.MinecraftClientAccessor;
 import org.agmas.holo.state.HoloPlayerComponent;
+import org.agmas.holo.statusEffects.ModStatusEffects;
 import org.agmas.holo.util.FakestPlayer;
 import org.agmas.holo.util.HologramType;
+import org.agmas.holo.util.payloads.DetonateC2SPacket;
 import org.agmas.holo.util.payloads.SendCallC2SPacket;
 import org.joml.*;
 import org.watermedia.api.media.MRL;
@@ -66,6 +73,7 @@ public class PhoneHolder {
     public static Matrix4f renderProj = new Matrix4f();
     public static PhoneState phoneState = PhoneState.CAMERA;
     public static int battery = 100;
+    public static int fun = 0;
     public static PhoneScreenTexture phoneScreenTexture = new PhoneScreenTexture();
     public static PhoneScreenTexture phoneScreenBackground = new PhoneScreenTexture();
     public static TiktokTexture tikTokTexture = new TiktokTexture(0);
@@ -87,7 +95,7 @@ public class PhoneHolder {
 
     public static ArrayList<MediaPlayer> minetokPlayer = new ArrayList<>();
     public static boolean renderingPanorama = false;
-    public static int panoramas = 4;
+    public static int panoramas = 8;
     public static ExecutorService executor = Executors.newFixedThreadPool(4);
     public static float appTransition = 1;
     public static float rotationTransition = 0;
@@ -98,22 +106,43 @@ public class PhoneHolder {
     public static boolean loadingTok =false;
     public static int loadableTiktoks = 0;
     public static int toksLoaded = 0;
+    public static float age = 0;
 
     public static ArrayList<Integer> lastUsedTiktoks = new ArrayList<>();
 
+    public static void renderHypnotizedHud(DrawContext drawContext, RenderTickCounter renderTickCounter) {
+        if (HoloClient.hypnotization > 0) {
+            age += renderTickCounter.getLastFrameDuration();
+            for (int i = 0; i < 9; i++) {
+                float localAge = age + (new Random((i+2)^4).nextFloat()*3000);
+                drawContext.getMatrices().push();
+                RenderSystem.enableBlend();
+                RenderSystem.setShaderColor(1f,1f,1f,(float) Math.sin(localAge*0.25f));
+                drawContext.drawTexture(Identifier.of("holo", "textures/gui/sprites/hud/hypnotized/" + i + ".png"), (int) (Math.sin(localAge*0.25f)*10), (int) (Math.cos(localAge*0.25f)*5),0,0,drawContext.getScaledWindowWidth(),drawContext.getScaledWindowHeight(),420,236);
+                drawContext.getMatrices().pop();
+                RenderSystem.setShaderColor(1,1,1,1);
+            }
+        }
+    }
     public static void transform(AbstractClientPlayerEntity player, float tickDelta, float pitch, Hand hand, float swingProgress, ItemStack item, float equipProgress, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light) {
         matrices.push();
         matrices.translate(0,-0.5,0);
-        matrices.translate(0, Math.clamp(MathHelper.lerp((player.getItemUseTime()+tickDelta)/10f, 0f, 0.5f),0f,0.5f),0);
+
+        if (HoloClient.hypnotization <= 0) {
+            matrices.translate(0, Math.clamp(MathHelper.lerp((player.getItemUseTime() + tickDelta) / 10f, 0f, 0.5f), 0f, 0.5f), 0);
+        } else {
+
+            matrices.translate(0, 0.5f, 0);
+        }
     }
     public static void mineTok() {
-        if (canStart && phoneState.equals(PhoneState.DOOMSCROLLING)) {
+        if (canStart && (phoneState.equals(PhoneState.DOOMSCROLLING) || HoloClient.hypnotization > 0 && phoneState!= PhoneState.DETONATING)) {
             if (minetokPlayer.isEmpty())
                 loadingTok = true;
             int loadDelay = 0;
 
             HoloConfig config = AutoConfig.getConfigHolder(HoloConfig.class).getConfig();
-            while (loadableTiktoks < config.preloadedVideos) {
+            while (loadableTiktoks < config.preloadedVideos || minetokPlayer.size() > config.preloadedVideos) {
                 try {
                     byte[] tiktokFile = MinecraftClient.getInstance().getResourceManager().getAllResources(Identifier.of("holo", "tiktoks.txt")).getFirst().getInputStream().readAllBytes();
                     String s = new String(tiktokFile, StandardCharsets.UTF_8);
@@ -165,8 +194,12 @@ public class PhoneHolder {
     public static boolean leftClickedLastFrame = false;
     public static void renderPhoneBuffer(DrawContext drawContext) {
         BACKUP_PROJECTION.set(RenderSystem.getProjectionMatrix());
-        RenderSystem.backupProjectionMatrix();
-        if (phoneState.equals(PhoneState.DOOMSCROLLING)) {
+        if (phoneState.equals(PhoneState.DOOMSCROLLING) || (HoloClient.hypnotization>0 && phoneState!= PhoneState.DETONATING)) {
+            HoloConfig config = AutoConfig.getConfigHolder(HoloConfig.class).getConfig();
+            if (minetokPlayer.size() > config.preloadedVideos) {
+                minetokPlayer.getLast().release();
+                minetokPlayer.removeLast();
+            }
             AtomicReference<MediaPlayer> nonBufferingPlayer = new AtomicReference<>();
             minetokPlayer.forEach((mp)->{
                 if (!mp.equals(minetokPlayer.getFirst())) {
@@ -194,7 +227,8 @@ public class PhoneHolder {
             }
         } else {
             loadableTiktoks = 0;
-            minetokPlayer.forEach(MediaPlayer::release);
+            if (HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).phoneExplosion <= 0) // This will sometimes crash when doomed but im too lazy to fix it so
+                minetokPlayer.forEach(MediaPlayer::release);
             tikTokTexture = new TiktokTexture(0);
             MinecraftClient.getInstance().getTextureManager().destroyTexture(Identifier.of("holo", "minetok_" + toksLoaded));
 
@@ -227,26 +261,24 @@ public class PhoneHolder {
         if (cursorPos.y < 0) cursorPos = new Vec2f(cursorPos.x,0);
 
         if (phoneBuffer != null) {
-
-
-
             // Camera
+
+            drawContext.draw();
+            VertexConsumerProvider.Immediate bufferSource = MinecraftClient.getInstance().getBufferBuilders().getEffectVertexConsumers();
+            bufferSource.draw();
+            VertexConsumerProvider.Immediate bufferSource2 = MinecraftClient.getInstance().getBufferBuilders().getEntityVertexConsumers();
+            bufferSource2.draw();
+
+
 
             AdvancedFbo drawFbo = VeilRenderSystem.renderer().getDynamicBufferManger().getDynamicFbo(phoneCameraBuffer);
             drawFbo.bind(true);
 
             updateCameraBuffer(drawFbo);
-
-            VertexConsumerProvider.Immediate bufferSource = MinecraftClient.getInstance().getBufferBuilders().getEffectVertexConsumers();
-            bufferSource.draw();
-
             bufferSource.draw();
             phoneScreenBackground.copy(drawFbo);
 
             // Main
-            drawFbo = VeilRenderSystem.renderer().getDynamicBufferManger().getDynamicFbo(phoneBuffer);
-            drawFbo.clear();
-            drawFbo.bind(true);
 
             RenderSystem.clear(GlConst.GL_DEPTH_BUFFER_BIT, MinecraftClient.IS_SYSTEM_MAC);
             Matrix4f matrix4f = new Matrix4f()
@@ -263,6 +295,9 @@ public class PhoneHolder {
             matrix4fStack.identity();
             RenderSystem.setProjectionMatrix(matrix4f, VertexSorter.BY_Z);
             matrix4fStack.translation(0.0F, 0.0F, -11000.0F);
+            drawFbo = VeilRenderSystem.renderer().getDynamicBufferManger().getDynamicFbo(phoneBuffer);
+            drawFbo.bind(true);
+            drawFbo.clear();
 
             if (phoneState.equals(PhoneState.DOOMSCROLLING)) {
                 if (!minetokPlayer.isEmpty()) {
@@ -276,12 +311,11 @@ public class PhoneHolder {
                         loadableTiktoks--;
                         loadTimeout = 0;
                     }
-                    leftClickedLastFrame = MinecraftClient.getInstance().mouse.wasLeftButtonClicked();
                 }
             }
             if (phoneState.equals(PhoneState.INCOMING_CALL) || phoneState.equals(PhoneState.OUTGOING_CALL)) {
                 renderingPanorama = true;
-                ROTATING_PANORAMA.render(drawContext, 1280, 720, 1, MinecraftClient.getInstance().getRenderTickCounter().getTickDelta(false) / 2.0f);
+                ROTATING_PANORAMA.render(drawContext, 1280, 720, 1, MinecraftClient.getInstance().getRenderTickCounter().getLastFrameDuration());
                 renderingPanorama = false;
 
                 phoneScreenTexture.copy(phoneBuffer);
@@ -290,32 +324,148 @@ public class PhoneHolder {
                 drawFbo.bind(true);
                 RenderSystem.setShaderTexture(0, phoneScreenTexture.getGlId());
                 RenderSystem.setShader(GameRenderer::getPositionTexProgram);
+                drawContext.getMatrices().push();
+                drawContext.getMatrices().translate(0,0,-1);
+                drawContext.getMatrices().scale(720,1280,1);
                 Matrix4f bgTextureMatrix = drawContext.getMatrices().peek().getPositionMatrix();
-                BufferBuilder bufferBuilder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE);
-                bufferBuilder.vertex(bgTextureMatrix, (float)0, (float)0, (float)0).texture(0,0);
-                bufferBuilder.vertex(bgTextureMatrix, (float)0, (float)1280, (float)0).texture(0,1);
-                bufferBuilder.vertex(bgTextureMatrix, (float)720, (float)1280, (float)0).texture(1,1);
-                bufferBuilder.vertex(bgTextureMatrix, (float)720, (float)0, (float)0).texture(1,0);
+                BufferBuilder bufferBuilder = Tessellator.getInstance().begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR_TEXTURE_LIGHT);
+                bufferBuilder.vertex(bgTextureMatrix, (float)0, (float)0, (float)0).texture(0,0).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).color(-1);
+                bufferBuilder.vertex(bgTextureMatrix, (float)0, (float)1, (float)0).texture(0,1).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).color(-1);
+                bufferBuilder.vertex(bgTextureMatrix, (float)1, (float)1, (float)0).texture(1,1).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).color(-1);
+                bufferBuilder.vertex(bgTextureMatrix, (float)1, (float)0, (float)0).texture(1,0).light(LightmapTextureManager.MAX_LIGHT_COORDINATE).color(-1);
                 VeilRenderType.get(Identifier.of("holo", "phone_blur")).draw(bufferBuilder.end());
+                drawContext.getMatrices().pop();
+
+                UUID shownPlayer = null;
+                if (HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).calling != null) {
+                    shownPlayer = HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).calling;
+                }
+                if (HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).caller != null) {
+                    shownPlayer = HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).caller;
+                }
+                if (shownPlayer != null && MinecraftClient.getInstance().getNetworkHandler() != null && MinecraftClient.getInstance().getNetworkHandler().getPlayerListEntry(shownPlayer) != null) {
+                    drawContext.getMatrices().push();
+                    PlayerSkinDrawer.draw(drawContext, MinecraftClient.getInstance().getNetworkHandler().getPlayerListEntry(shownPlayer).getSkinTextures(), (720 / 2) - 128, (1280 / 2) - 356, 256);
+
+                    drawContext.getMatrices().push();
+                    drawContext.getMatrices().scale(8, 8, 1);
+                    float nameWidth = MinecraftClient.getInstance().textRenderer.getWidth(MinecraftClient.getInstance().getNetworkHandler().getPlayerListEntry(shownPlayer).getProfile().getName()) * 8f;
+                    drawContext.getMatrices().translate(((720 - nameWidth) / 2f) / 8f, ((1280 / 2f) - 80) / 8f, 0);
+                    drawContext.drawText(MinecraftClient.getInstance().textRenderer, MinecraftClient.getInstance().getNetworkHandler().getPlayerListEntry(shownPlayer).getProfile().getName(), 0, 0, -1, true);
+                    drawContext.getMatrices().pop();
+
+                    drawContext.getMatrices().push();
+                    drawContext.getMatrices().scale(5, 5, 1);
+                    nameWidth = MinecraftClient.getInstance().textRenderer.getWidth("Calling...") * 5f;
+                    drawContext.getMatrices().translate(((720 - nameWidth) / 2f) / 5f, ((1280 / 2f) + 10) / 5f, 0);
+                    drawContext.drawText(MinecraftClient.getInstance().textRenderer, Text.literal("Calling...").formatted(Formatting.GRAY), 0, 0, -1, true);
+                    drawContext.getMatrices().pop();
+
+                    if (HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).caller != null) {
+                        drawContext.drawTexture(Identifier.of("holo","textures/gui/sprites/phone/pick_up.png"),40,780,0,0,256,256,256,256);
+                        drawContext.drawTexture(Identifier.of("holo","textures/gui/sprites/phone/hang_up.png"),(720-256)-40,780,0,0,256,256,256,256);
+                        int x = (720-256)-40;
+                        int y = 780;
+
+                        if ((x < cursorPos.x + 28 || x < cursorPos.x + 100) && ((x + 256) > cursorPos.x + 28 || (x + 256) > cursorPos.x + 100)) {
+                            if ((y < cursorPos.y + 28 || y < cursorPos.y + 100) && ((y + 256) > cursorPos.y + 28 || (y + 256) > cursorPos.y + 100)) {
+                                drawContext.fill(x, y, x + 256, y + 256, new Color(160, 160, 255, 200).getRGB());
+                                if (MinecraftClient.getInstance().mouse.wasLeftButtonClicked() && !leftClickedLastFrame) {
+                                    MinecraftClient.getInstance().execute(() -> {
+                                        ClientPlayNetworking.send(new SendCallC2SPacket(MinecraftClient.getInstance().player.getUuid()));
+                                    });
+                                    PhoneHolder.phoneState = PhoneState.WAITING_FOR_SERVER;
+                                }
+                            }
+                        }
+                        x = 40;
+
+                        if ((x < cursorPos.x+28 || x < cursorPos.x+100) && ((x+256) > cursorPos.x+28 || (x+256) > cursorPos.x+100)) {
+                            if ((y < cursorPos.y + 28 || y  < cursorPos.y + 100) && ((y + 256)  > cursorPos.y + 28 || (y + 256) > cursorPos.y + 100)) {
+                                drawContext.fill(x,y,x+256,y+256, new Color(160,160,255,200).getRGB());
+                                if (MinecraftClient.getInstance().mouse.wasLeftButtonClicked() && !leftClickedLastFrame) {
+                                    MinecraftClient.getInstance().execute(()->{
+                                        ClientPlayNetworking.send(new SendCallC2SPacket(HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).caller));
+                                    });
+                                    PhoneHolder.phoneState = PhoneState.WAITING_FOR_SERVER;
+                                }
+                            }
+                        }
+                    } else {
+                        drawContext.drawTexture(Identifier.of("holo","textures/gui/sprites/phone/hang_up.png"),(720-256)/2,780,0,0,256,256,256,256);
+                        int x = (720-256)/2;
+                        int y = 780;
+
+                        if ((x < cursorPos.x+28 || x < cursorPos.x+100) && ((x+256) > cursorPos.x+28 || (x+256) > cursorPos.x+100)) {
+                            if ((y < cursorPos.y + 28 || y  < cursorPos.y + 100) && ((y + 256)  > cursorPos.y + 28 || (y + 256) > cursorPos.y + 100)) {
+                                drawContext.fill(x,y,x+256,y+256, new Color(160,160,255,200).getRGB());
+                                if (MinecraftClient.getInstance().mouse.wasLeftButtonClicked() && !leftClickedLastFrame) {
+                                    MinecraftClient.getInstance().execute(()->{
+                                        ClientPlayNetworking.send(new SendCallC2SPacket(MinecraftClient.getInstance().player.getUuid()));
+                                    });
+                                    PhoneHolder.phoneState = PhoneState.WAITING_FOR_SERVER;
+                                }
+                            }
+                        }
+                    }
+                    drawContext.getMatrices().pop();
+                }
+            } else {
+                if (HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).calling != null) {
+                    phoneState = PhoneState.OUTGOING_CALL;
+                }
+                if (HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).caller != null) {
+                    phoneState = PhoneState.INCOMING_CALL;
+                }
+            }
+            if (HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).caller == null && HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).calling == null) {
+                if (phoneState == PhoneState.INCOMING_CALL || phoneState == PhoneState.OUTGOING_CALL) {
+                    phoneState = PhoneState.HOME;
+                }
+            }
+
+            if (phoneState.equals(PhoneState.CALL)) {
+                renderCallsMenuUI(drawContext);
+            }
+            if (phoneState.equals(PhoneState.RED)) {
+                if (MinecraftClient.getInstance().player.getUuidAsString().equalsIgnoreCase("a36800f5-62b5-49a8-b669-b7c061ea594e") || FabricLoader.getInstance().isDevelopmentEnvironment()) {
+                    renderREDMenuUI(drawContext);
+                } else {
+                    drawContext.getMatrices().push();
+                    drawContext.getMatrices().scale(4,4,1);
+
+                    if (Math.random() > 0.98) {
+                        float scaleDistortionAmount = (float) (Math.random()-0.5) * 0.1f;
+                        drawContext.getMatrices().scale(1+scaleDistortionAmount, 1+scaleDistortionAmount,0);
+                    }
+                    if (Math.random() > 0.98) {
+                        float positionDistortionAmount = (float) (Math.random()-0.5) * 3f;
+                        drawContext.getMatrices().translate(1+positionDistortionAmount, 1+positionDistortionAmount,0);
+                    }
+                    drawContext.drawText(MinecraftClient.getInstance().textRenderer, Text.literal("ERROR -- NOT AUTHORIZED").formatted(Formatting.RED), 10, 40, -1, false);
+                    drawContext.getMatrices().pop();
+                }
             }
             if (phoneState.equals(PhoneState.HOME)) {
                 renderingPanorama = true;
-                ROTATING_PANORAMA.render(drawContext, 1280, 720, 1, MinecraftClient.getInstance().getRenderTickCounter().getTickDelta(false) / 2.0f);
+                ROTATING_PANORAMA.render(drawContext, 1280, 720, 1, MinecraftClient.getInstance().getRenderTickCounter().getLastFrameDuration());
                 renderingPanorama = false;
                 drawContext.getMatrices().push();
                 drawContext.getMatrices().scale(3,3,1);
 
-                renderAppIcon(drawContext,32,64,"call",Text.literal("Calls"),PhoneState.CALL);
-                renderAppIcon(drawContext,128,64,"tiktok",Text.literal("Minetok"),PhoneState.DOOMSCROLLING);
-                renderAppIcon(drawContext,32,128+16,"camera",Text.literal("Holo Feed").formatted(Formatting.BLUE),PhoneState.CAMERA);
+                renderAppIcon(drawContext,32,64,"call",Text.literal(fun == 3 ? "ring ring ring ring ring ring ring ring ring ring ring ring ring ring ring ring ring ring" : "Calls"),PhoneState.CALL);
+                renderAppIcon(drawContext,128,64,fun == 1 ? "tiktok_rare" : "tiktok",Text.literal(fun == 2 ? "Skibidi Toilet Scrolling Simulator" : "Minetok"),PhoneState.DOOMSCROLLING);
+                renderAppIcon(drawContext,32,128+16,"camera",Text.literal(fun == 4 ? "FNAF 1" : "Holo Feed").formatted(Formatting.BLUE),PhoneState.CAMERA);
+                if (MinecraftClient.getInstance().world.getGameRules().getBoolean(Holo.DOOMSCROLLING_GAMERULE))
+                    renderAppIcon(drawContext,128+32,256+32,"red",Text.literal("R.E.D").formatted(Formatting.RED),PhoneState.RED);
 
                 drawContext.getMatrices().pop();
             }
             if (phoneState.equals(PhoneState.CAMERA)) {
                 renderCameraUI(drawContext);
             }
-            if (phoneState.equals(PhoneState.CALL)) {
-                renderCallsMenuUI(drawContext);
+            if (phoneState.equals(PhoneState.DETONATING)) {
+                renderDetonating(drawContext);
             }
 
             drawContext.getMatrices().push();
@@ -337,8 +487,8 @@ public class PhoneHolder {
             drawContext.drawTexture(Identifier.of("holo", batterySprite),4,12,0,0,8,8,8,8);
             drawContext.drawText(MinecraftClient.getInstance().textRenderer, Text.of(battery + "%"), 12,12,batteryColor.getRGB(),true);
 
-            drawContext.fill(batteryBgEnd+2,10,MinecraftClient.getInstance().textRenderer.getWidth(Text.of(Date.from(Instant.now()).toString().substring(0,9)))+batteryBgEnd+6,22,new Color(100,100,100,100).getRGB());
-            drawContext.drawText(MinecraftClient.getInstance().textRenderer, Text.of(Date.from(Instant.now()).toString().substring(0,9)), batteryBgEnd+4,12,-1,true);
+            drawContext.fill(batteryBgEnd+2,10,MinecraftClient.getInstance().textRenderer.getWidth(Text.of(Date.from(Instant.now()).toString().substring(0,10)))+batteryBgEnd+6,22,new Color(100,100,100,100).getRGB());
+            drawContext.drawText(MinecraftClient.getInstance().textRenderer, Text.of(Date.from(Instant.now()).toString().substring(0,10)), batteryBgEnd+4,12,-1,true);
 
             if (phoneState.equals(PhoneState.DOOMSCROLLING)) {
                 if (tikTokTexture.getGlId() == 0) {
@@ -398,13 +548,16 @@ public class PhoneHolder {
                 drawContext.drawText(MinecraftClient.getInstance().textRenderer, Text.of("CONNECTING"),0,0,screenSaverColors.getFirst().getRGB(),false);
                 drawContext.getMatrices().pop();
             }
+            drawContext.draw();
             bufferSource.draw();
             phoneScreenTexture.copy(phoneBuffer);
-            matrix4fStack.popMatrix();
+                matrix4fStack.popMatrix();
+                RenderSystem.applyModelViewMatrix();
             AdvancedFbo.unbind();
         }
+        leftClickedLastFrame = MinecraftClient.getInstance().mouse.wasLeftButtonClicked();
         RenderSystem.setProjectionMatrix(BACKUP_PROJECTION, VertexSorter.BY_Z);
-
+        MinecraftClient.getInstance().gameRenderer.loadProjectionMatrix(BACKUP_PROJECTION);
     }
 
     public static void renderAppIcon(DrawContext context, int x, int y, String textureName, Text text, PhoneState endState) {
@@ -439,6 +592,7 @@ public class PhoneHolder {
     }
 
     public static void render(ItemRenderer itemRenderer, AbstractClientPlayerEntity player, float tickDelta, float pitch, Hand hand, float swingProgress, ItemStack item, float equipProgress, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light) {
+
         float swing = 0;
         if (swingProgress < 0.5) {
             swing = MathHelper.lerp(swingProgress*2, 0f, 1f);
@@ -450,6 +604,12 @@ public class PhoneHolder {
         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(swing*10));
         if (player.getActiveHand().equals(Hand.OFF_HAND)) {
             PhoneHolder.phoneState = PhoneState.CAMERA;
+        }
+        if (HoloClient.hypnotization > 0) {
+            PhoneHolder.phoneState = PhoneState.DOOMSCROLLING;
+        }
+        if (HoloPlayerComponent.KEY.get(player).phoneExplosion >0) {
+            PhoneHolder.phoneState = PhoneState.DETONATING;
         }
         matrices.push();
         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(90*Easing.EASE_IN_SINE.ease(rotationTransition)));
@@ -472,6 +632,7 @@ public class PhoneHolder {
 
         RenderSystem.setShaderTexture(0, phoneScreenBackground.getGlId());
         VeilRenderType.get(Identifier.of(Holo.MOD_ID, "phone_camera")).draw(builder.end());
+
 
         // Minetok
 
@@ -533,28 +694,26 @@ public class PhoneHolder {
         }
         drawContext.getMatrices().pop();
     }
-    public static UUID calling = null;
     public static void renderCallsMenuUI(DrawContext drawContext) {
         drawContext.getMatrices().push();
         drawContext.drawTexture(Identifier.of("minecraft", "textures/block/end_stone.png"),0,0,0,0,720,1280,64,64);
 
         drawContext.getMatrices().translate(32f,148f,0);
-        int y = 50;
+        int y = 150;
         boolean oneSelected = false;
         for (PlayerListEntry playerListEntry : MinecraftClient.getInstance().getNetworkHandler().getListedPlayerListEntries()) {
             boolean self = playerListEntry.getProfile().getId().equals(MinecraftClient.getInstance().player.getUuid());
             if (self) {
                 drawContext.fill(-6,-6,720-64,48+6,new Color(100,100,100,100).getRGB());
             }
-            else if ((y * 3 < cursorPos.y + 28 || y * 3 < cursorPos.y + 100) && ((y + 16) * 3 > cursorPos.y + 28 || (y + 16) * 3 > cursorPos.y + 100)) {
+            else if ((y < cursorPos.y + 28 || y < cursorPos.y + 100) && ((y + 16) > cursorPos.y + 28 || (y + 16) > cursorPos.y + 100)) {
                 if (!oneSelected) {
                     drawContext.fill(-6, -6, 720 - 64, 48 + 6, new Color(160, 160, 255, 200).getRGB());
                     oneSelected = true;
-                    if (MinecraftClient.getInstance().mouse.wasLeftButtonClicked()) {
+                    if (MinecraftClient.getInstance().mouse.wasLeftButtonClicked() && !leftClickedLastFrame) {
                         MinecraftClient.getInstance().execute(()->{
                             ClientPlayNetworking.send(new SendCallC2SPacket(playerListEntry.getProfile().getId()));
                         });
-                        calling = playerListEntry.getProfile().getId();
                         PhoneHolder.phoneState = PhoneState.OUTGOING_CALL;
                     }
                 }
@@ -573,6 +732,68 @@ public class PhoneHolder {
 
         drawContext.getMatrices().pop();
     }
+    public static void renderREDMenuUI(DrawContext drawContext) {
+        drawContext.getMatrices().push();
+        drawContext.drawTexture(Identifier.of("minecraft", "textures/block/black_concrete.png"),0,0,0,0,720,1280,64,64);
+
+        if (Math.random() > 0.98) {
+            float scaleDistortionAmount = (float) (Math.random()-0.5) * 0.1f;
+            drawContext.getMatrices().scale(1+scaleDistortionAmount, 1+scaleDistortionAmount,0);
+        }
+        if (Math.random() > 0.98) {
+            float positionDistortionAmount = (float) (Math.random()-0.5) * 3f;
+            drawContext.getMatrices().translate(1+positionDistortionAmount, 1+positionDistortionAmount,0);
+        }
+        drawContext.drawTexture(Identifier.of("holo", "textures/gui/sprites/phone/button.png"),(720 / 2) - 128, (1280 / 2) - 200, 0,0,256,256,256,256);
+
+        int x = (720 / 2) - 128;
+        int y = (1280 / 2) - 200;
+
+        if ((x < cursorPos.x+28 || x < cursorPos.x+100) && ((x+256) > cursorPos.x+28 || (x+256) > cursorPos.x+100)) {
+            if ((y < cursorPos.y + 28 || y < cursorPos.y + 100) && ((y + 256)  > cursorPos.y + 28 || (y + 256)  > cursorPos.y + 100)) {
+                drawContext.fill(x,y, x+256, y+256, new Color(160, 160, 255, 100).getRGB());
+                if (MinecraftClient.getInstance().mouse.wasLeftButtonClicked() && !leftClickedLastFrame) {
+                    MinecraftClient.getInstance().execute(()->{
+                        ClientPlayNetworking.send(new DetonateC2SPacket());
+                    });
+                    PhoneHolder.phoneState = PhoneState.DETONATING;
+                }
+            }
+        }
+        drawContext.getMatrices().pop();
+    }
+    public static void renderDetonating(DrawContext drawContext) {
+        drawContext.getMatrices().push();
+        drawContext.drawTexture(Identifier.of("minecraft", "textures/block/black_concrete.png"),0,0,0,0,720,1280,64,64);
+
+        if (Math.random() > 0.98) {
+            float scaleDistortionAmount = (float) (Math.random()-0.5) * 0.1f;
+            drawContext.getMatrices().scale(1+scaleDistortionAmount, 1+scaleDistortionAmount,0);
+        }
+        if (Math.random() > 0.98) {
+            float positionDistortionAmount = (float) (Math.random()-0.5) * 3f;
+            drawContext.getMatrices().translate(1+positionDistortionAmount, 1+positionDistortionAmount,0);
+        }
+
+        drawContext.getMatrices().push();
+        drawContext.getMatrices().scale(8, 8, 1);
+        drawContext.getMatrices().multiply(RotationAxis.NEGATIVE_X.rotationDegrees(new Random(MinecraftClient.getInstance().player.age).nextFloat()*4f));
+        float nameWidth = MinecraftClient.getInstance().textRenderer.getWidth("DETONATING IN..") * 8f;
+        drawContext.getMatrices().translate(((720 - nameWidth) / 2f) / 8f, ((1280 / 2f) - 140) / 8f, 0);
+        drawContext.drawText(MinecraftClient.getInstance().textRenderer,"DETONATING IN..", 0, 0, Color.RED.getRGB(), true);
+        drawContext.getMatrices().pop();
+
+        drawContext.getMatrices().push();
+        drawContext.getMatrices().scale(12, 12, 1);
+        drawContext.getMatrices().multiply(RotationAxis.POSITIVE_X.rotationDegrees(new Random(MinecraftClient.getInstance().player.age).nextFloat()*4f));
+        String text = ""+(int)(HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).phoneExplosion/20f);
+        nameWidth = MinecraftClient.getInstance().textRenderer.getWidth(text) * 12f;
+        drawContext.getMatrices().translate(((720 - nameWidth) / 2f) / 12f, ((1280 / 2f) - 30) / 12f, 0);
+        drawContext.drawText(MinecraftClient.getInstance().textRenderer, text, 0, 0, Color.RED.getRGB(), true);
+        drawContext.getMatrices().pop();
+
+        drawContext.getMatrices().pop();
+    }
     public static int selectedHolo = 0;
     public static List<PlayerEntity> availableHolos;
     public static void updateCameraBuffer(AdvancedFbo phoneBuffer) {
@@ -580,7 +801,8 @@ public class PhoneHolder {
         availableHolos = MinecraftClient.getInstance().world.getEntitiesByClass(PlayerEntity.class, MinecraftClient.getInstance().player.getBoundingBox().expand(1000), (fakestPlayer -> {
             return
                     (HoloPlayerComponent.KEY.get(fakestPlayer).ownerUUID != null && HoloPlayerComponent.KEY.get(fakestPlayer).ownerUUID.equals(MinecraftClient.getInstance().player.getUuid())) ||
-                    HoloPlayerComponent.KEY.get(fakestPlayer).hologramType.equals(HologramType.BATTLE_DUEL);
+                    HoloPlayerComponent.KEY.get(fakestPlayer).hologramType.equals(HologramType.BATTLE_DUEL) ||
+                            HoloPlayerComponent.KEY.get(fakestPlayer).publicCamera;
         }));
         if (selectedHolo >= availableHolos.size()) {
             selectedHolo = 0;
@@ -613,7 +835,10 @@ public class PhoneHolder {
         CALL,
         INCOMING_CALL,
         OUTGOING_CALL,
-        DOOMSCROLLING
+        WAITING_FOR_SERVER,
+        DOOMSCROLLING,
+        RED,
+        DETONATING
     }
 
 }

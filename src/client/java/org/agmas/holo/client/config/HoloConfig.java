@@ -11,6 +11,9 @@ public class HoloConfig implements ConfigData {
     @Comment("Will permenantly enable the light framebuffers in veil.")
     public boolean useVeilLights = true;
 
+    @Comment("Shows the style meter when in a battle duel hologram.")
+    public boolean styleMeter = true;
+
     @Comment("How many videos the phone will pre-load (default: 3")
     public int preloadedVideos = 3;
 

@@ -18,7 +18,6 @@ public abstract class NoSwappingHotbarMixin {
             if (PhoneHolder.usingPhone) {
                 for (int i = 0; i < 9; i++) {
                     if (MinecraftClient.getInstance().options.hotbarKeys[i].equals(((KeyBinding) (Object)this))) {
-                        Log.info(LogCategory.GENERAL, "stopped hotbar key");
                         return false;
                     }
                 }

@@ -1,0 +1,4 @@
+accessWidener v1 named
+
+accessible  class   net/minecraft/enchantment/EnchantmentHelper$Consumer
+accessible  class   net/minecraft/enchantment/EnchantmentHelper$ContextAwareConsumer

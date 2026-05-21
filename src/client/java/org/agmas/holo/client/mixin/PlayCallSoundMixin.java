@@ -9,6 +9,7 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.agmas.holo.Holo;
+import org.agmas.holo.client.sound.AlarmSoundLoop;
 import org.agmas.holo.client.sound.CallSoundLoop;
 import org.agmas.holo.state.HoloPlayerComponent;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,9 +25,17 @@ public abstract class PlayCallSoundMixin extends PlayerEntity {
 
     @Inject(method = "tick", at = @At("HEAD"))
     void playCallSound(CallbackInfo ci) {
+        if (HoloPlayerComponent.KEY.get(this).phoneExplosion > 0) {
+            if (!HoloPlayerComponent.KEY.get(this).playingAlarmSound) {
+                AlarmSoundLoop callSoundLoop = new AlarmSoundLoop(Holo.alarm, this);
+                MinecraftClient.getInstance().getSoundManager().play(callSoundLoop);
+                HoloPlayerComponent.KEY.get(this).playingAlarmSound = true;
+            }
+        } else {
+            HoloPlayerComponent.KEY.get(this).playingAlarmSound = false;
+        }
         if (HoloPlayerComponent.KEY.get(this).callSound != 0) {
             if (!HoloPlayerComponent.KEY.get(this).playingCallSound) {
-                Log.info(LogCategory.GENERAL, "ring ring ring");
                 CallSoundLoop callSoundLoop = new CallSoundLoop(Holo.ringtones.get(HoloPlayerComponent.KEY.get(this).callSound-1), this);
                 MinecraftClient.getInstance().getSoundManager().play(callSoundLoop);
                 HoloPlayerComponent.KEY.get(this).playingCallSound = true;

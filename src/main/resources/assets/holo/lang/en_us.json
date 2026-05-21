@@ -9,6 +9,7 @@
   "item.holo.scout_hologram_spawn_egg": "Scout Hologram Spawn Egg",
   "item.holo.camera_hologram_spawn_egg": "Camera Hologram Spawn Egg",
   "item.holo.phone": "Phone",
+  "effect.holo.doomed": "Doomed",
   "sound.holo.holo_death": "Holo Breaks",
   "sound.holo.holo_switch": "Computer Switches Holo",
   "text.autoconfig.holo.option.macMode": "Mac Mode/Shaderless Mode",

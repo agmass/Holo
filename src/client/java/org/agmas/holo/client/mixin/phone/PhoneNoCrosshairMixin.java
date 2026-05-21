@@ -9,6 +9,7 @@ import net.minecraft.client.gui.hud.InGameHud;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.entity.player.PlayerEntity;
 import org.agmas.holo.ModItems;
+import org.agmas.holo.client.HoloClient;
 import org.agmas.holo.client.render.PhoneHolder;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
@@ -26,7 +27,7 @@ public abstract class PhoneNoCrosshairMixin {
     @WrapMethod(method = "renderCrosshair")
     public void disableWhenWatchingCams(DrawContext context, RenderTickCounter tickCounter, Operation<Void> original) {
         if (getCameraPlayer() != null) {
-            if (getCameraPlayer().getActiveItem().isOf(ModItems.PHONE)) {
+            if (getCameraPlayer().getActiveItem().isOf(ModItems.PHONE) || HoloClient.hypnotization > 0) {
                 return;
             }
         }

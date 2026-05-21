@@ -70,7 +70,6 @@ public abstract class HoloUIMixin {
                 Text line2 = Text.literal("IN A DUEL").formatted(Formatting.DARK_GRAY);
                 Text line4 = Text.literal("■ ").formatted(Formatting.RED).append(Text.literal(HoloClient.playersInDuel + " players left.").formatted(Formatting.WHITE));
                 int i = 0;
-                Log.info(LogCategory.GENERAL,HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).playersInFight+"");
                 for (UUID uuid : HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).playersInFight) {
                     i++;
                     PlayerEntity otherPlayer = MinecraftClient.getInstance().world.getPlayerByUuid(uuid);
@@ -135,14 +134,14 @@ public abstract class HoloUIMixin {
     }
     @WrapOperation(method = "renderFood", at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/player/HungerManager;getFoodLevel()I"))
     public int showSaturation(HungerManager instance, Operation<Integer> original) {
-        if (HoloClient.hologramType == HologramType.BATTLE || HoloClient.hologramType == HologramType.BATTLE_DUEL) {
+        if (HoloClient.hologramType == HologramType.BATTLE || (HoloClient.hologramType == HologramType.BATTLE_DUEL && !HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).battleUsesNormalSaturation)) {
             return (int) instance.getSaturationLevel();
         }
         return original.call(instance);
     }
     @WrapOperation(method = "renderFood", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/DrawContext;drawGuiTexture(Lnet/minecraft/util/Identifier;IIII)V", ordinal = 0))
     public void changeFoodTexturesEmpty(DrawContext instance, Identifier texture, int x, int y, int width, int height, Operation<Void> original) {
-        if (HoloClient.hologramType == HologramType.BATTLE || HoloClient.hologramType == HologramType.BATTLE_DUEL) {
+        if (HoloClient.hologramType == HologramType.BATTLE || (HoloClient.hologramType == HologramType.BATTLE_DUEL && !HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).battleUsesNormalSaturation)) {
             instance.drawTexture(Identifier.of(Holo.MOD_ID, "textures/gui/sprites/hud/gold_food_empty.png"),x,y,0,0,9,9,9,9);
             return;
         }
@@ -151,7 +150,7 @@ public abstract class HoloUIMixin {
 
     @WrapOperation(method = "renderFood", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/DrawContext;drawGuiTexture(Lnet/minecraft/util/Identifier;IIII)V", ordinal = 1))
     public void changeFoodTextures(DrawContext instance, Identifier texture, int x, int y, int width, int height, Operation<Void> original) {
-        if (HoloClient.hologramType == HologramType.BATTLE || HoloClient.hologramType == HologramType.BATTLE_DUEL) {
+        if (HoloClient.hologramType == HologramType.BATTLE || (HoloClient.hologramType == HologramType.BATTLE_DUEL && !HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).battleUsesNormalSaturation)) {
             instance.drawTexture(Identifier.of(Holo.MOD_ID, "textures/gui/sprites/hud/gold_food_full.png"),x,y,0,0,9,9,9,9);
             return;
         }
@@ -159,7 +158,7 @@ public abstract class HoloUIMixin {
     }
     @WrapOperation(method = "renderFood", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/DrawContext;drawGuiTexture(Lnet/minecraft/util/Identifier;IIII)V", ordinal = 2))
     public void changeFoodTexturesHalf(DrawContext instance, Identifier texture, int x, int y, int width, int height, Operation<Void> original) {
-        if (HoloClient.hologramType == HologramType.BATTLE || HoloClient.hologramType == HologramType.BATTLE_DUEL) {
+        if (HoloClient.hologramType == HologramType.BATTLE || (HoloClient.hologramType == HologramType.BATTLE_DUEL && !HoloPlayerComponent.KEY.get(MinecraftClient.getInstance().player).battleUsesNormalSaturation)) {
             instance.drawTexture(Identifier.of(Holo.MOD_ID, "textures/gui/sprites/hud/gold_food_half.png"),x,y,0,0,9,9,9,9);
             return;
         }
@@ -179,7 +178,6 @@ public abstract class HoloUIMixin {
 
             ci.cancel();
         }
-        RenderSystem.disableBlend();
     }
 
 }

@@ -3,7 +3,10 @@ package org.agmas.holo.client.mixin.phone;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Local;
 import foundry.veil.api.client.util.Easing;
+import net.fabricmc.loader.impl.util.log.Log;
+import net.fabricmc.loader.impl.util.log.LogCategory;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.item.HeldItemRenderer;
@@ -32,7 +35,8 @@ public abstract class PhonePoseMixin {
 
     @WrapMethod(method = "renderFirstPersonItem")
     public void renderPhonePose(AbstractClientPlayerEntity player, float tickDelta, float pitch, Hand hand, float swingProgress, ItemStack item, float equipProgress, MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, Operation<Void> original) {
-        if (player.getItemUseTime() > 0 && item.isOf(ModItems.PHONE)) {
+        if ((player.getItemUseTime() > 0 && player.getActiveItem().isOf(ModItems.PHONE)) || HoloClient.hypnotization > 0) {
+            if (item.isOf(ModItems.PHONE)) return;
             PhoneHolder.transform(player,tickDelta,pitch,hand,swingProgress,item,equipProgress,matrices,vertexConsumers,light);
             matrices.push();
             matrices.translate(0.05f,0,0);
@@ -40,11 +44,13 @@ public abstract class PhonePoseMixin {
             matrices.translate(0.1f * (1-tweenedRot),0,0);
 
             renderArmHoldingItem(matrices, vertexConsumers, light, 0f, player.getMainArm().equals(Arm.LEFT) ? swingProgress : 0f, Arm.LEFT);
+
             matrices.pop();
             matrices.push();
             matrices.translate(-0.05f,0,0);
             matrices.translate(-0.1f * (1-tweenedRot),0,0);
             renderArmHoldingItem(matrices, vertexConsumers, light, 0f, player.getMainArm().equals(Arm.RIGHT) ? swingProgress : 0f, Arm.RIGHT);
+
             matrices.pop();
             PhoneHolder.render(itemRenderer,player,tickDelta,pitch,hand,swingProgress,item,equipProgress,matrices,vertexConsumers,light);
             matrices.pop();

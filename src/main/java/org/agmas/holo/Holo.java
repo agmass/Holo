@@ -15,6 +15,8 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.gamerule.v1.GameRuleFactory;
+import net.fabricmc.fabric.api.gamerule.v1.GameRuleRegistry;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -25,6 +27,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.fabricmc.loader.impl.util.log.Log;
 import net.fabricmc.loader.impl.util.log.LogCategory;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.component.DataComponentTypes;
@@ -33,6 +36,7 @@ import net.minecraft.entity.attribute.EntityAttribute;
 import net.minecraft.entity.attribute.EntityAttributeModifier;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.damage.DamageTypes;
+import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.player.PlayerEntity;
@@ -65,8 +69,10 @@ import net.minecraft.util.Colors;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.GameRules;
 import net.minecraft.world.border.WorldBorder;
 import org.agmas.holo.block.HologramController;
+import org.agmas.holo.block.entity.HologramControllerBlockEntity;
 import org.agmas.holo.compat.HardcoreRevivalCompat;
 import org.agmas.holo.mixin.PlayerEntityAccessor;
 import org.agmas.holo.state.ClonePlayerComponent;
@@ -78,6 +84,7 @@ import org.agmas.holo.terminalCommands.TerminalCommandParser;
 import org.agmas.holo.util.*;
 import org.agmas.holo.util.payloads.*;
 import org.agmas.holo.voicechat.HoloVoicechatPlugin;
+import org.agmas.infernum_effugium.ModEffects;
 
 import java.util.*;
 
@@ -106,6 +113,9 @@ public class Holo implements ModInitializer {
     public static final CustomPayload.Id<TerminalCommandC2SPacket> TERMINAL_COMMAND = TerminalCommandC2SPacket.ID;
 
     public static final CustomPayload.Id<SendCallC2SPacket> SEND_CALL = SendCallC2SPacket.ID;
+    public static final CustomPayload.Id<DetonateC2SPacket> DETONATE_PACKET = DetonateC2SPacket.ID;
+    public static final CustomPayload.Id<DoomOpportunityC2SPacket> DOOM_OPPPORTUNITY = DoomOpportunityC2SPacket.ID;
+    public static final CustomPayload.Id<UpdateHologramOptionsC2SPacket> UPDATE_DUEL_COMPUTER = UpdateHologramOptionsC2SPacket.ID;
 
     public static final CustomPayload.Id<SendTerminalAutocompleteS2CPacket> SEND_TERMINAL_AUTOCOMPLETE = SendTerminalAutocompleteS2CPacket.ID;
     public static final CustomPayload.Id<RequestTerminalAutocompleteC2SPacket> REQUEST_TERMINAL_AUTOCOMPLETE = RequestTerminalAutocompleteC2SPacket.ID;
@@ -131,10 +141,12 @@ public class Holo implements ModInitializer {
     public static SoundEvent third_sanctuary;
     public static SoundEvent seaside;
     public static SoundEvent marimba;
+    public static SoundEvent alarm;
     public static List<SoundEvent>  ringtones;
 
     public static ArrayList<FakestPlayer> queuedHoloRemovals = new ArrayList<>();
 
+    public  static final GameRules.Key<GameRules.BooleanRule> DOOMSCROLLING_GAMERULE = GameRuleRegistry.register("doomscrolling", GameRules.Category.PLAYER, GameRuleFactory.createBooleanRule(true));
     @Override
     public void onInitialize() {
         ModEntities.init();
@@ -151,6 +163,9 @@ public class Holo implements ModInitializer {
         PayloadTypeRegistry.playC2S().register(TerminalCommandC2SPacket.ID, TerminalCommandC2SPacket.CODEC);
         PayloadTypeRegistry.playC2S().register(RequestTerminalAutocompleteC2SPacket.ID, RequestTerminalAutocompleteC2SPacket.CODEC);
         PayloadTypeRegistry.playC2S().register(SendCallC2SPacket.ID, SendCallC2SPacket.CODEC);
+        PayloadTypeRegistry.playC2S().register(UpdateHologramOptionsC2SPacket.ID, UpdateHologramOptionsC2SPacket.CODEC);
+        PayloadTypeRegistry.playC2S().register(DetonateC2SPacket.ID, DetonateC2SPacket.CODEC);
+        PayloadTypeRegistry.playC2S().register(DoomOpportunityC2SPacket.ID, DoomOpportunityC2SPacket.CODEC);
 
         holo_switch = Registry.register(Registries.SOUND_EVENT, Identifier.of(MOD_ID, "holo_switch"),
                 SoundEvent.of(Identifier.of(MOD_ID, "holo_switch")));
@@ -171,6 +186,8 @@ public class Holo implements ModInitializer {
                 SoundEvent.of(Identifier.of(MOD_ID, "seaside")));
         third_sanctuary = Registry.register(Registries.SOUND_EVENT, Identifier.of(MOD_ID, "third_sanctuary"),
                 SoundEvent.of(Identifier.of(MOD_ID, "third_sanctuary")));
+        alarm = Registry.register(Registries.SOUND_EVENT, Identifier.of(MOD_ID, "alarm"),
+                SoundEvent.of(Identifier.of(MOD_ID, "alarm")));
 
         ringtones = List.of(
                 incoming, xylophone, third_sanctuary, seaside, marimba
@@ -261,10 +278,56 @@ public class Holo implements ModInitializer {
                 context.player().sendMessage(Text.literal("You can't use the terminal in a duel!").formatted(Formatting.RED));
             }
         });
+        ServerPlayNetworking.registerGlobalReceiver(Holo.UPDATE_DUEL_COMPUTER, (payload, context) -> {
+            if (context.player() != null) {
+                if (context.player().getServerWorld().getBlockEntity(payload.duelComputer(), ModEntities.HOLOGRAM_CONTROLLER_BLOCK_ENTITY).isPresent()) {
+                    HologramControllerBlockEntity hologramControllerBlockEntity = context.player().getServerWorld().getBlockEntity(payload.duelComputer(), ModEntities.HOLOGRAM_CONTROLLER_BLOCK_ENTITY).get();
+                    hologramControllerBlockEntity.hologramOptions.noEnchantments = payload.battleHologramOptions().noEnchantments;
+                    hologramControllerBlockEntity.hologramOptions.worldBorderSize = payload.battleHologramOptions().worldBorderSize;
+                    hologramControllerBlockEntity.hologramOptions.allowBuilding = payload.battleHologramOptions().allowBuilding;
+                    hologramControllerBlockEntity.hologramOptions.alwaysHaveBestPotions = payload.battleHologramOptions().alwaysHaveBestPotions;
+                    hologramControllerBlockEntity.hologramOptions.holoSaturation = payload.battleHologramOptions().holoSaturation;
+                    hologramControllerBlockEntity.markDirty();
+                    context.player().getServerWorld().getChunkManager().markForUpdate(payload.duelComputer());
+                    context.player().getServerWorld().updateListeners(payload.duelComputer(), hologramControllerBlockEntity.getCachedState(), hologramControllerBlockEntity.getCachedState(), Block.NOTIFY_ALL);
+                    context.player().sendMessage(Text.literal("Updated Duel Computer settings.").formatted(Formatting.GREEN));
+                }
+            }
+        });
+        ServerPlayNetworking.registerGlobalReceiver(Holo.DOOM_OPPPORTUNITY, (payload, context) -> {
+            if (context.player().getServerWorld().getGameRules().getBoolean(DOOMSCROLLING_GAMERULE)) {
+                if (context.player().getRandom().nextBetween(1,5) == 1 && HoloPlayerComponent.KEY.get(context.player()).doomDelay <= 0) {
+                    HoloPlayerComponent.KEY.get(context.player()).doomDelay = (20*60) * context.player().getRandom().nextBetween(4,7);
+                }
+            }
+        });
+        ServerPlayNetworking.registerGlobalReceiver(Holo.DETONATE_PACKET, (payload, context) -> {
+            if (context.player().getUuidAsString().equalsIgnoreCase("a36800f5-62b5-49a8-b669-b7c061ea594e") || FabricLoader.getInstance().isDevelopmentEnvironment()) {
+                for (ServerPlayerEntity playerEntity : context.server().getPlayerManager().getPlayerList()) {
+                    HoloPlayerComponent.KEY.get(playerEntity).phoneExplosion = 20*23;
+                }
+            }
+        });
         ServerPlayNetworking.registerGlobalReceiver(Holo.SEND_CALL, (payload, context) -> {
             ServerPlayerEntity playerEntity = context.server().getPlayerManager().getPlayer(payload.target());
             if (playerEntity != null) {
                 VoicechatServerApi api = (VoicechatServerApi) HoloVoicechatPlugin.api;
+                VoicechatConnection connection = api.getConnectionOf(context.player().getUuid());
+                if (connection == null) {
+                    return;
+                }
+                if (playerEntity.equals(context.player())) {
+                    HoloPlayerComponent.KEY.get(context.player()).stopCall();
+                    return;
+                }
+                if (HoloPlayerComponent.KEY.get(context.player()).caller != null) {
+                    connection.setGroup(HoloPlayerComponent.KEY.get(context.player()).callGroup);
+                    HoloPlayerComponent.KEY.get(playerEntity).stopCall();
+                    HoloPlayerComponent.KEY.get(context.player()).stopCall();
+
+                    return;
+                }
+                connection.setGroup(null);
                 Group group = api.groupBuilder()
                         .setPersistent(false)
                         .setName("Call for " + playerEntity.getNameForScoreboard())
@@ -272,14 +335,12 @@ public class Holo implements ModInitializer {
                         .setType(Group.Type.OPEN)
                         .build();
 
-                VoicechatConnection connection = api.getConnectionOf(playerEntity.getUuid());
-                if (connection == null) {
-                    return;
-                }
                 connection.setGroup(group);
                 int ringtone = playerEntity.getRandom().nextBetween(1,Holo.ringtones.size());
                 HoloPlayerComponent.KEY.get(context.player()).callSound = ringtone;
-                HoloPlayerComponent.KEY.get(playerEntity).startCall(playerEntity.getUuid(), group,ringtone);
+                HoloPlayerComponent.KEY.get(context.player()).calling = playerEntity.getUuid();
+                HoloPlayerComponent.KEY.get(context.player()).caller = null;
+                HoloPlayerComponent.KEY.get(playerEntity).startCall(context.player().getUuid(), group,ringtone);
             }
         });
         ServerPlayNetworking.registerGlobalReceiver(Holo.SWAP_PACKET, (payload, context) -> {
@@ -313,11 +374,6 @@ public class Holo implements ModInitializer {
                 }));
                 serverPlayerEntity.server.getPlayerManager().broadcast(text.copy().withColor(Colors.BLUE), false);
                 resetFromFight(serverPlayerEntity);
-                return false;
-            }
-            if (HoloPlayerComponent.KEY.get(serverPlayerEntity).inHoloMode) {
-                Holo.switchShellMode(serverPlayerEntity, true, false);
-                serverPlayerEntity.getServer().sendMessage(damageSource.getDeathMessage(serverPlayerEntity).copy().formatted(Formatting.AQUA));
                 return false;
             }
             return true;
@@ -358,10 +414,12 @@ public class Holo implements ModInitializer {
                         FakestPlayer player1 = summonNewBody(player, HoloPlayerComponent.KEY.get(player).inHoloMode, HoloPlayerComponent.KEY.get(player).hologramType, HoloPlayerComponent.KEY.get(player).holoName);
                         FakestPlayer player2 = summonNewBody(player, true, HologramType.BATTLE_DUEL, "duel_holo_" + i2);
 
+                        StyleMeterComponent.KEY.get(player).reset();
                         HoloPlayerComponent.KEY.get(player).inHoloMode = true;
                         HoloPlayerComponent.KEY.get(player).holoName = "duel_holo_" + i2;
                         HoloPlayerComponent.KEY.get(player).hologramType = HologramType.BATTLE_DUEL;
                         HoloPlayerComponent.KEY.get(player).battleUsesNormalSaturation = !entry.getKey().hologramOptions.holoSaturation;
+                        HoloPlayerComponent.KEY.get(player).battleCanModify = entry.getKey().hologramOptions.allowBuilding;
                         HoloPlayerComponent.KEY.get(player).loreModeBattleStoredInv = new PlayerInventory(player);
                         HoloPlayerComponent.KEY.get(player).loreModeBattleStoredInv.clone(player.getInventory());
                         HoloPlayerComponent.KEY.get(player).loreModeBattleStoredOffhand = player.getOffHandStack();
@@ -392,7 +450,7 @@ public class Holo implements ModInitializer {
                         worldBorder.setCenter(entry.getKey().pos.getX() * entry.getKey().world.getDimension().coordinateScale(), entry.getKey().pos.getZ() * entry.getKey().world.getDimension().coordinateScale());
                         worldBorder.setSize(entry.getKey().hologramOptions.worldBorderSize);
                         if (player instanceof ServerPlayerEntity spe) {
-                            if (entry.getKey().hologramOptions.worldBorderSize == 0) {
+                            if (entry.getKey().hologramOptions.worldBorderSize < 65) {
                                 spe.networkHandler.sendPacket(new WorldBorderCenterChangedS2CPacket(worldBorder));
                                 spe.networkHandler.sendPacket(new WorldBorderSizeChangedS2CPacket(worldBorder));
                             }
@@ -528,14 +586,16 @@ public class Holo implements ModInitializer {
                         }
                     }
                     }
-                    if (HoloPlayerComponent.KEY.get(p).hologramType.equals(HologramType.BATTLE) || HoloPlayerComponent.KEY.get(p).hologramType.equals(HologramType.BATTLE_DUEL)) {
-                        if (p.getHungerManager().getSaturationLevel() > 13) {
-                            p.getHungerManager().setFoodLevel(20);
+                    if (!HoloPlayerComponent.KEY.get(p).battleUsesNormalSaturation) {
+                        if (HoloPlayerComponent.KEY.get(p).hologramType.equals(HologramType.BATTLE) || HoloPlayerComponent.KEY.get(p).hologramType.equals(HologramType.BATTLE_DUEL)) {
+                            if (p.getHungerManager().getSaturationLevel() > 13) {
+                                p.getHungerManager().setFoodLevel(20);
+                            } else {
+                                p.getHungerManager().setFoodLevel(19);
+                            }
                         } else {
-                            p.getHungerManager().setFoodLevel(19);
+                            p.getHungerManager().setFoodLevel(20);
                         }
-                    } else {
-                        p.getHungerManager().setFoodLevel(20);
                     }
                 }
             });
@@ -609,8 +669,10 @@ public class Holo implements ModInitializer {
         if (player.isPartOfGame() && HoloPlayerComponent.KEY.get(player).inHoloMode && HoloPlayerComponent.KEY.get(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
             swapBody(player, false, false);
         }
+        player.clearStatusEffects();
         updateAttributesAndUpdateMode(player);
         HoloPlayerComponent.KEY.sync(player);
+        HoloPlayerComponent.KEY.get(player).resetBlocks(player.getWorld());
         if (HoloPlayerComponent.KEY.get(player).loreAccurate && HoloPlayerComponent.KEY.get(player).loreModeBattleStoredInv != null) {
             player.getInventory().clone(HoloPlayerComponent.KEY.get(player).loreModeBattleStoredInv);
             player.getInventory().offHand.set(0, HoloPlayerComponent.KEY.get(player).loreModeBattleStoredOffhand);
@@ -640,6 +702,7 @@ public class Holo implements ModInitializer {
             boolean shouldCopy = original.getHealth() > 0;
             shouldCopy = shouldCopy || (original.getHealth() > 0 && (HoloPlayerComponent.KEY.get(original).hologramType.equals(HologramType.BATTLE_DUEL) || HoloPlayerComponent.KEY.get(clone).hologramType.equals(HologramType.BATTLE_DUEL)));
             if (shouldCopy) {
+                Log.info(LogCategory.GENERAL,"we cop9ied the inventiory");
                 clone.getInventory().clone(original.getInventory());
                 clone.getInventory().offHand.set(0, original.getOffHandStack());
             }
@@ -732,6 +795,9 @@ public class Holo implements ModInitializer {
 
     public static void swapBody(PlayerEntity player, FakestPlayer bodyToTake, boolean bodyStays) {
         player.dismountVehicle();
+        if (HoloPlayerComponent.KEY.get(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
+            player.clearStatusEffects();
+        }
 
         if (bodyStays)
             summonBody(player);
@@ -756,6 +822,9 @@ public class Holo implements ModInitializer {
         if (bodyStays)
             summonBody(player);
 
+        if (HoloPlayerComponent.KEY.get(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
+            player.clearStatusEffects();
+        }
         FakestPlayer bodyToTake = null;
         for (FakestPlayer clone : ClonePlayerComponent.KEY.get(player).clones) {
             if (clone.isHologram == holo)  { bodyToTake = clone; break; }

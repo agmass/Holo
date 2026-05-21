@@ -87,7 +87,6 @@ public class FakestPlayer extends ServerPlayerEntity {
                 }
             }
         } else {
-
             if (p != null) {
                 if (ClonePlayerComponent.KEY.get(p).clones.contains(this)) {
                     p.sendMessage(damageSource.getDeathMessage(this));

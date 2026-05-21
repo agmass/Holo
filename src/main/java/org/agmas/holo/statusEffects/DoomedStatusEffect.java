@@ -9,7 +9,7 @@ import java.awt.*;
 public class DoomedStatusEffect extends StatusEffect {
     public DoomedStatusEffect() {
         super(
-                StatusEffectCategory.BENEFICIAL,
+                StatusEffectCategory.HARMFUL,
                 new Color(255,100,100).getRGB());
     }
 
