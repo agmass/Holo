@@ -5,6 +5,7 @@ import com.google.common.collect.ImmutableMultimap;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import de.maxhenkel.voicechat.api.Group;
+import de.maxhenkel.voicechat.api.ServerPlayer;
 import de.maxhenkel.voicechat.api.VoicechatConnection;
 import de.maxhenkel.voicechat.api.VoicechatServerApi;
 import net.fabricmc.api.ModInitializer;
@@ -234,6 +235,7 @@ public class Holo implements ModInitializer {
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.FUNCTIONAL).register((t)->{
             t.add(ModBlocks.HOLOGRAM_CONTROLLER);
             t.add(ModBlocks.BATTLE_HOLOGRAM_CONTROLLER);
+            t.add(ModItems.PHONE);
         });
 
         ServerLifecycleEvents.SERVER_STOPPING.register((srv)->{
@@ -254,11 +256,12 @@ public class Holo implements ModInitializer {
             fights.clear();
             playersWaitingForBattle.clear();
         });
-        ServerPlayConnectionEvents.DISCONNECT.register(((serverPlayNetworkHandler, minecraftServer) -> {
-            if (HoloPlayerComponent.KEY.get(serverPlayNetworkHandler.player).hologramType.equals(HologramType.BATTLE_DUEL)) {
-                resetFromFight(serverPlayNetworkHandler.player);
+        ServerPlayerEvents.LEAVE.register(((player) -> {
+            if (player instanceof FakestPlayer) return;
+            if (HoloPlayerComponent.KEY.get(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
+                resetFromFight(player,false);
             }
-            queuedHoloRemovals.addAll(ClonePlayerComponent.KEY.get(serverPlayNetworkHandler.player).clones);
+            queuedHoloRemovals.addAll(ClonePlayerComponent.KEY.get(player).clones);
         }));
 
         ArrayList<ServerPlayerEntity> bufferedKeys = new ArrayList<>();
@@ -367,21 +370,15 @@ public class Holo implements ModInitializer {
             }
             HoloModeUpdates.spawnHolosOnClient(newPlayer);
         }));
-        ServerLivingEntityEvents.ALLOW_DEATH.register(((livingEntity, damageSource, v) -> {
+        ServerPlayerEvents.ALLOW_DEATH.register(((livingEntity, damageSource, v) -> {
 
             if (livingEntity instanceof ServerPlayerEntity serverPlayerEntity) {
                 if (HoloPlayerComponent.KEY.get(serverPlayerEntity).hologramType.equals(HologramType.BATTLE_DUEL)) {
                     Text text = serverPlayerEntity.getDamageTracker().getDeathMessage();
-
-                    serverPlayerEntity.networkHandler.send(new DeathMessageS2CPacket(serverPlayerEntity.getId(), text), PacketCallbacks.of(() -> {
-                        int i = 256;
-                        String string = text.asTruncatedString(256);
-                        Text text2 = Text.translatable("death.attack.message_too_long", new Object[]{Text.literal(string).formatted(Formatting.YELLOW)});
-                        Text text3 = Text.translatable("death.attack.even_more_magic", new Object[]{serverPlayerEntity.getDisplayName()}).styled((style) -> style.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, text2)));
-                        return new DeathMessageS2CPacket(serverPlayerEntity.getId(), text3.copy().withColor(Colors.BLUE));
-                    }));
+                    serverPlayerEntity.setHealth(20);
                     serverPlayerEntity.server.getPlayerManager().broadcast(text.copy().withColor(Colors.BLUE), false);
-                    resetFromFight(serverPlayerEntity);
+                    resetFromFight(serverPlayerEntity,false);
+                    return false;
                 }
             }
             return true;
@@ -395,13 +392,13 @@ public class Holo implements ModInitializer {
             fights.removeIf((fight)->{
                 fight.removeIf((p)->{
                     if (!p.isPartOfGame() || !HoloPlayerComponent.KEY.get(p).inHoloMode|| !HoloPlayerComponent.KEY.get(p).hologramType.equals(HologramType.BATTLE_DUEL)) {
-                        resetFromFight(p);
+                        resetFromFight(p,false);
                         return true;
                     }
                     return false;
                 });
                 if (fight.size() == 1) {
-                    resetFromFight(fight.get(0));
+                    resetFromFight(fight.get(0),false);
                     return true;
                 }
                 return fight.isEmpty();
@@ -419,6 +416,7 @@ public class Holo implements ModInitializer {
                     int i2 = 0;
                     for (PlayerEntity player : entry.getValue()) {
                         i2++;
+                        ((ServerPlayerEntity) player).networkHandler.sendPacket(new CloseScreenS2CPacket(player.currentScreenHandler.syncId));
                         FakestPlayer player1 = summonNewBody(player, HoloPlayerComponent.KEY.get(player).inHoloMode, HoloPlayerComponent.KEY.get(player).hologramType, HoloPlayerComponent.KEY.get(player).holoName);
                         FakestPlayer player2 = summonNewBody(player, true, HologramType.BATTLE_DUEL, "duel_holo_" + i2);
 
@@ -611,7 +609,7 @@ public class Holo implements ModInitializer {
                 if (bufferedKeys.contains(bufferPlayer)) {
                     FakestPlayer fakestPlayer = ClonePlayerComponent.KEY.get(bufferPlayer).clones.get(0);
                     if (HoloPlayerComponent.KEY.get(bufferPlayer).hologramType.equals(HologramType.BATTLE_DUEL)) {
-                        resetFromFight(bufferPlayer);
+                        resetFromFight(bufferPlayer,false);
                     } else {
                         swapBody(bufferPlayer, fakestPlayer, !HoloPlayerComponent.KEY.get(bufferPlayer).hologramType.equals(HologramType.BATTLE_DUEL));
                         updateAttributesAndUpdateMode(bufferPlayer);
@@ -668,22 +666,23 @@ public class Holo implements ModInitializer {
         HoloPlayerComponent.KEY.sync(p);
     }
 
-    public static void resetFromFight(PlayerEntity player) {
-        player.getInventory().clear();
+    public static void resetFromFight(PlayerEntity player, boolean died) {
         if (player instanceof ServerPlayerEntity spe) {
             spe.playerScreenHandler.setCursorStack(ItemStack.EMPTY);
             spe.networkHandler.sendPacket(new WorldBorderCenterChangedS2CPacket(player.getWorld().getWorldBorder()));
             spe.networkHandler.sendPacket(new WorldBorderSizeChangedS2CPacket(player.getWorld().getWorldBorder()));
         }
-        if (player.isPartOfGame() && HoloPlayerComponent.KEY.get(player).inHoloMode && HoloPlayerComponent.KEY.get(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
-            swapBody(player, false, false);
-            if (HoloPlayerComponent.KEY.get(player).loreAccurate && HoloPlayerComponent.KEY.get(player).loreModeBattleStoredInv != null) {
-                player.getInventory().clone(HoloPlayerComponent.KEY.get(player).loreModeBattleStoredInv);
-                player.getInventory().offHand.set(0, HoloPlayerComponent.KEY.get(player).loreModeBattleStoredOffhand);
-                HoloPlayerComponent.KEY.get(player).loreModeBattleStoredInv = null;
+        if (!died) {
+            if (player.isPartOfGame() && HoloPlayerComponent.KEY.get(player).inHoloMode && HoloPlayerComponent.KEY.get(player).hologramType.equals(HologramType.BATTLE_DUEL)) {
+                swapBody(player, false, false);
+                if (HoloPlayerComponent.KEY.get(player).loreAccurate && HoloPlayerComponent.KEY.get(player).loreModeBattleStoredInv != null) {
+                    player.getInventory().clone(HoloPlayerComponent.KEY.get(player).loreModeBattleStoredInv);
+                    player.getInventory().offHand.set(0, HoloPlayerComponent.KEY.get(player).loreModeBattleStoredOffhand);
+                    HoloPlayerComponent.KEY.get(player).loreModeBattleStoredInv = null;
+                }
+                player.clearStatusEffects();
+                updateAttributesAndUpdateMode(player);
             }
-            player.clearStatusEffects();
-            updateAttributesAndUpdateMode(player);
         }
         HoloPlayerComponent.KEY.get(player).resetBlocks(player.getWorld());
         HoloPlayerComponent.KEY.sync(player);
@@ -712,7 +711,6 @@ public class Holo implements ModInitializer {
             boolean shouldCopy = original.getHealth() > 0;
             shouldCopy = shouldCopy || (original.getHealth() > 0 && (HoloPlayerComponent.KEY.get(original).hologramType.equals(HologramType.BATTLE_DUEL) || HoloPlayerComponent.KEY.get(clone).hologramType.equals(HologramType.BATTLE_DUEL)));
             if (shouldCopy) {
-                Log.info(LogCategory.GENERAL,"we cop9ied the inventiory");
                 clone.getInventory().clone(original.getInventory());
                 clone.getInventory().offHand.set(0, original.getOffHandStack());
             }

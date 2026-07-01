@@ -36,7 +36,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BattleHologramComputer extends HologramController{
-    public static final IntProperty HOLOGRAM_COUNT = IntProperty.of("holograms", 2, 16);
+    public static final IntProperty HOLOGRAM_COUNT = IntProperty.of("holograms", 2, 48);
     public BattleHologramComputer(Settings settings) {
         super(settings);
         setDefaultState(this.getDefaultState().with(HOLOGRAM_COUNT, 2));
@@ -88,7 +88,7 @@ public class BattleHologramComputer extends HologramController{
                         return ActionResult.FAIL;
                 }
                 if (player.getMainHandStack().isOf(ModItems.BATTLE_HOLOGRAM_SPAWN_EGG)) {
-                    if (state.get(HOLOGRAM_COUNT) < 16) {
+                    if (state.get(HOLOGRAM_COUNT) < 48) {
                         player.getMainHandStack().decrement(1);
                         player.sendMessage(Text.of("This machine now accepts " + (state.get(HOLOGRAM_COUNT) + 1) + " players."), true);
                         world.setBlockState(pos, state.with(HOLOGRAM_COUNT, state.get(HOLOGRAM_COUNT) + 1));
